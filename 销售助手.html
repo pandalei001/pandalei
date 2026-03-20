@@ -468,29 +468,43 @@ function cleanWechat(raw,clientName){
   var skipWords=['以下为新消息','对方正在输入','[图片]','[语音]','[视频]','[文件]','撤回了一条消息','拍了拍'];
   var lines=raw.split('\n').map(function(l){return l.trim();}).filter(function(l){return l;});
   var result=[];var role='';
+
   function isMe(sp){
     if(!sp)return false;
     if(sp==='我'||sp==='自己'||sp==='销售')return true;
-    if(myWxName&&(sp===myWxName||sp.indexOf(myWxName)===0||myWxName.indexOf(sp)===0))return true;
+    if(myWxName&&(sp===myWxName||sp.indexOf(myWxName)>=0||myWxName.indexOf(sp)>=0))return true;
     return false;
   }
-  function isHeader(line){
-    if(/^.{1,60}\s{2,}\d{1,2}:\d{2}$/.test(line))return true;
-    if(/^.{1,60}\s+\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2}$/.test(line))return true;
-    if(/^[「『].+\d{1,2}:\d{2}[」』]$/.test(line))return true;
-    return false;
+
+  function checkHeader(line){
+    var sp='';
+    // 格式1：名字: （单独一行，冒号结尾，这是你的微信格式）
+    var m1=line.match(/^(.{1,60}):$/);
+    if(m1){sp=m1[1].trim();return sp;}
+    // 格式2：名字  HH:MM
+    var m2=line.match(/^(.{1,60})\s{2,}\d{1,2}:\d{2}$/);
+    if(m2){sp=m2[1].trim();return sp;}
+    // 格式3：名字 yyyy/mm/dd HH:MM
+    var m3=line.match(/^(.{1,60})\s+\d{4}[\/-]\d{1,2}[\/-]\d{1,2}\s+\d{1,2}:\d{2}$/);
+    if(m3){sp=m3[1].trim();return sp;}
+    // 格式4：「名字 HH:MM」
+    var m4=line.match(/^[「『](.+?)\s+\d{1,2}:\d{2}[」』]$/);
+    if(m4){sp=m4[1].trim();return sp;}
+    return '';
   }
-  function getSpeaker(line){
-    var m=line.match(/^[「『]?(.+?)\s+\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2}[」』]?$/)||
-           line.match(/^[「『]?(.+?)\s{2,}\d{1,2}:\d{2}[」』]?$/);
-    return m?m[1].trim():'';
-  }
+
   lines.forEach(function(line){
     if(skipWords.some(function(k){return line.includes(k);}))return;
-    if(/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(line)||/^\d{1,2}:\d{2}$/.test(line))return;
-    if(isHeader(line)){var sp=getSpeaker(line);if(sp)role=isMe(sp)?'我':'客户';return;}
+    if(/^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/.test(line)||/^\d{1,2}:\d{2}$/.test(line))return;
+    var sp=checkHeader(line);
+    if(sp){role=isMe(sp)?'我':'客户';return;}
     if(line&&role){result.push(role+'：'+line);}
-    else if(line){var cm=line.match(/^(.{1,25})：(.+)$/);if(cm)result.push((isMe(cm[1])?'我':'客户')+'：'+cm[2]);else result.push(line);}
+    else if(line){
+      // 没检测到消息头，尝试 名字：内容 格式
+      var cm=line.match(/^(.{1,25})：(.+)$/);
+      if(cm)result.push((isMe(cm[1])?'我':'客户')+'：'+cm[2]);
+      else result.push(line);
+    }
   });
   return result.join('\n')||raw;
 }
