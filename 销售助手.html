@@ -229,6 +229,16 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
         <button class="btn btn-primary btn-sm" onclick="saveSettings()">保存</button>
       </div>
       <div class="card">
+        <div class="card-title"><span class="dot"></span>我的微信名</div>
+        <div class="setting-group">
+          <div class="setting-label">你在微信里的昵称全名（用于识别聊天记录里谁是你）</div>
+          <input type="text" id="myWxName" placeholder="如：云e宝 雷攀（推荐有好礼）">
+          <div class="setting-hint">填写后导入历史对话时AI能准确区分你和客户</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveSettings()">保存</button>
+      </div>
+
+      <div class="card">
         <div class="card-title"><span class="dot"></span>飞书多维表格（可选）</div>
         <div class="setting-group"><div class="setting-label">App ID</div><input type="text" id="fsAppId" placeholder="cli_xxxxxxxx"></div>
         <div class="setting-group"><div class="setting-label">App Secret</div><input type="password" id="fsAppSecret" placeholder="xxxxxxxx"></div>
@@ -259,7 +269,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
 </div>
 
 <script>
-var cfg = {dsKey:'',fsAppId:'',fsAppSecret:'',fsAppToken:'',fsTableId:'',knowledgeBase:'',styleLog:[],styleProfile:null};
+var cfg = {dsKey:'',myWxName:'',fsAppId:'',fsAppSecret:'',fsAppToken:'',fsTableId:'',knowledgeBase:'',styleLog:[],styleProfile:null};
 var clients = {};
 var currentClient = '';
 var currentAiData = null;
@@ -272,6 +282,7 @@ function loadStorage() {
 function saveStorage(){localStorage.setItem('ynb_cfg',JSON.stringify(cfg));localStorage.setItem('ynb_clients',JSON.stringify(clients));}
 function saveSettings(){
   cfg.dsKey=document.getElementById('dsKey').value.trim();
+  cfg.myWxName=document.getElementById('myWxName').value.trim();
   cfg.fsAppId=document.getElementById('fsAppId').value.trim();
   cfg.fsAppSecret=document.getElementById('fsAppSecret').value.trim();
   cfg.fsAppToken=document.getElementById('fsAppToken').value.trim();
@@ -344,7 +355,7 @@ function buildPrompt(analysisOnly){
   if(cfg.styleProfile&&cfg.styleProfile.advice)styleAddon='\n\n## 我的话术风格\n'+cfg.styleProfile.advice+'\n语气：'+(cfg.styleProfile.tone||'')+'\n避免：'+(cfg.styleProfile.avoid||[]).join('、');
   var base='你是云e宝服装管理系统的顶级销售顾问，20年经验，擅长读懂客户心理。\n\n## 产品知识库\n'+kb+styleAddon;
   if(analysisOnly){
-    return base+'\n\n## 任务\n深度分析客户对话，输出JSON（只输出JSON，不要其他内容）：\n{"intent":"客户核心意图","level":"A或B或C","pain":"具体痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标签1","标签2","标签3","标签4","标签5"],"wx_group":"A类重点跟进或B类培育中或C类待激活","replies":[]}\n\n标签维度：店铺类型(童装/女装/男装/运动装/批发档口)、经营状态(新开店/在装修/老店升级/多门店/即将开业)、来源(朋友转介绍/自主搜索)、决策特征(价格敏感/决策快/需审批/技术顾虑)、规模(小微1-2人/中型3-5人/大型6人+)\n等级：A=热意向，B=有兴趣，C=了解中';
+    return base+'\n\n## 任务\n深度分析客户对话，输出JSON（只输出JSON，不要其他内容）：\n{"intent":"客户核心意图","level":"A或B或C","pain":"具体痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标签1","标签2","标签3","标签4","标签5"],"wx_group":"A类重点跟进或B类培育中或C类待激活","replies":[]}\n\n标签维度：店铺类型(童装/女装/男装/运动装/批发档口)、经营状态(新开店/在装修/老店升级/多门店/即将开业)、来源(朋友转介绍/自主搜索)、决策特征(价格敏感/决策快/需审批/技术顾虑)、规模(小微1-2人/中型3-5人/大型6人+)\n等级：A=热意向，B=有兴趣，C=了解中\n\n注意：1)标签根据对话内容提取不能根据客户名字推断 2)对话里我方说的是销售话术客户方说的才是客户需求 3)痛点只提取客户主动说出的内容';
   }else{
     return base+'\n\n## 任务\n分析客户消息，输出JSON（只输出JSON，不要其他内容）：\n{"intent":"意图概括","level":"A或B或C","pain":"核心痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"摘要","tags":["标签1","标签2","标签3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","replies":["话术1","话术2","话术3"]}\n\n话术要求：像真人说话；场景化不列功能；价格异议先价值再试用；"再想想"追问顾虑；准成交推进预约；每条100字内；follow_days默认2。\n等级：A=热意向，B=有兴趣，C=了解中';
   }
@@ -453,17 +464,33 @@ async function analyzeBatch(){
 }
 
 function cleanWechat(raw,clientName){
+  var myWxName=cfg.myWxName||'';
+  var skipWords=['以下为新消息','对方正在输入','[图片]','[语音]','[视频]','[文件]','撤回了一条消息','拍了拍'];
   var lines=raw.split('\n').map(function(l){return l.trim();}).filter(function(l){return l;});
-  var result=[];var role='';var myNames=['我','自己','销售'];
+  var result=[];var role='';
+  function isMe(sp){
+    if(!sp)return false;
+    if(sp==='我'||sp==='自己'||sp==='销售')return true;
+    if(myWxName&&(sp===myWxName||sp.indexOf(myWxName)===0||myWxName.indexOf(sp)===0))return true;
+    return false;
+  }
+  function isHeader(line){
+    if(/^.{1,60}\s{2,}\d{1,2}:\d{2}$/.test(line))return true;
+    if(/^.{1,60}\s+\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2}$/.test(line))return true;
+    if(/^[「『].+\d{1,2}:\d{2}[」』]$/.test(line))return true;
+    return false;
+  }
+  function getSpeaker(line){
+    var m=line.match(/^[「『]?(.+?)\s+\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2}[」』]?$/)||
+           line.match(/^[「『]?(.+?)\s{2,}\d{1,2}:\d{2}[」』]?$/);
+    return m?m[1].trim():'';
+  }
   lines.forEach(function(line){
-    var hm=line.match(/^[「『]?(.+?)\s+\d{4}[\/-]\d{1,2}[\/-]\d{1,2}\s+\d{1,2}:\d{2}[」』]?$/)||
-           line.match(/^[「『]?(.+?)\s+\d{1,2}:\d{2}[」』]?$/)||
-           line.match(/^(.+?)\s{2,}\d{1,2}:\d{2}$/);
-    if(hm){var sp=hm[1].trim();role=myNames.includes(sp)?'我':(sp===clientName||(!myNames.includes(sp)&&sp.length<10)?'客户':'我');return;}
-    if(/^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/.test(line)||/^\d{1,2}:\d{2}$/.test(line))return;
-    if(['以下为新消息','对方正在','[图片]','[语音]','[视频]'].some(function(k){return line.includes(k);}))return;
+    if(skipWords.some(function(k){return line.includes(k);}))return;
+    if(/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(line)||/^\d{1,2}:\d{2}$/.test(line))return;
+    if(isHeader(line)){var sp=getSpeaker(line);if(sp)role=isMe(sp)?'我':'客户';return;}
     if(line&&role){result.push(role+'：'+line);}
-    else if(line){var cm=line.match(/^(.{1,8})：(.+)$/);if(cm)result.push((myNames.includes(cm[1])?'我':'客户')+'：'+cm[2]);else result.push(line);}
+    else if(line){var cm=line.match(/^(.{1,25})：(.+)$/);if(cm)result.push((isMe(cm[1])?'我':'客户')+'：'+cm[2]);else result.push(line);}
   });
   return result.join('\n')||raw;
 }
