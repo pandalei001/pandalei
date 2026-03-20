@@ -365,7 +365,8 @@ function buildPrompt(analysisOnly){
 async function callAI(userMsg,history,analysisOnly){
   if(!cfg.dsKey){showToast('请先在设置页填写 DeepSeek API Key');return null;}
   var histMsgs=[];
-  (history||[]).slice(-8).forEach(function(h){
+  var histSlice=analysisOnly?(history||[]):(history||[]).slice(-10);
+  histSlice.forEach(function(h){
     if(h.role==='user')histMsgs.push({role:'user',content:'客户说：'+h.content});
     else if(h.role==='assistant'&&h.replyUsed)histMsgs.push({role:'assistant',content:'我回复了：'+h.replyUsed});
   });
@@ -666,7 +667,7 @@ function renderHistory(name){
   var history=clients[name]&&clients[name].history||[];
   if(!history.length){card.style.display='none';return;}
   card.style.display='block';
-  el.innerHTML=history.slice(-12).map(function(h){
+  el.innerHTML=history.map(function(h){
     var isUser=h.role==='user';var text=isUser?h.content:(h.replyUsed||h.content);
     return '<div style="padding:7px 10px;border-radius:7px;background:'+(isUser?'rgba(79,141,255,.08)':'rgba(46,204,138,.08)')+';border:1px solid '+(isUser?'rgba(79,141,255,.3)':'rgba(46,204,138,.3)')+'">'+
       '<div style="font-size:10px;color:'+(isUser?'var(--accent)':'var(--green)')+';font-weight:500;margin-bottom:2px">'+(isUser?'客户':'我')+'</div>'+
