@@ -176,6 +176,36 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
   <div id="clientList"></div>
 </div>
 
+<!-- 跟进话术弹窗 -->
+<div id="followUpModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:center;justify-content:center">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;width:90%;max-width:580px;max-height:85vh;overflow-y:auto;padding:24px;position:relative">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:15px;font-weight:500;color:var(--text)" id="modalClientName"></div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px" id="modalClientInfo"></div>
+      </div>
+      <button onclick="closeFollowUpModal()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:13px">关闭</button>
+    </div>
+
+    <div id="modalLoading" class="loading" style="display:none"><div class="spinner"></div> AI正在生成跟进话术…</div>
+
+    <div id="modalContent" style="display:none">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">选择话术（点击选中，可在下方修改）</div>
+      <div id="modalReplies"></div>
+
+      <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px">修改后复制发送</div>
+        <textarea id="modalEditReply" rows="4" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:9px 12px;outline:none;resize:vertical"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="copyFollowUpReply()">复制话术</button>
+          <button class="btn btn-ghost btn-sm" onclick="regenerateFollowUp()">重新生成</button>
+        </div>
+        <div id="modalSaveHint" style="font-size:11px;color:var(--green);margin-top:6px;display:none">已记录到风格学习 ✓</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 每日跟进 -->
 <div class="page" id="page-daily">
   <div class="card">
