@@ -5,1753 +5,731 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>云e宝 · 销售助手</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
-
-  :root {
-    --bg: #0f1117;
-    --bg2: #181c27;
-    --bg3: #1e2335;
-    --border: #2a3050;
-    --accent: #4f8dff;
-    --accent2: #7c5cfc;
-    --green: #2ecc8a;
-    --amber: #f5a623;
-    --red: #ff5b5b;
-    --text: #e8eaf0;
-    --text2: #8b91a8;
-    --text3: #555d78;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: 'Noto Sans SC', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    font-size: 14px;
-  }
-
-  /* 顶部导航 */
-  .topbar {
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    padding: 0 24px;
-    display: flex;
-    align-items: center;
-    gap: 0;
-    height: 52px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-
-  .logo {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--accent);
-    margin-right: 32px;
-    letter-spacing: 1px;
-  }
-
-  .tabs {
-    display: flex;
-    height: 100%;
-  }
-
-  .tab {
-    padding: 0 20px;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    color: var(--text2);
-    font-size: 13px;
-    border-bottom: 2px solid transparent;
-    transition: all 0.2s;
-    white-space: nowrap;
-  }
-
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-  .topbar-right {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  /* 配置状态指示 */
-  .config-badge {
-    font-size: 11px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    background: rgba(255,91,91,0.15);
-    color: var(--red);
-    border: 1px solid rgba(255,91,91,0.3);
-    cursor: pointer;
-  }
-  .config-badge.ok {
-    background: rgba(46,204,138,0.15);
-    color: var(--green);
-    border-color: rgba(46,204,138,0.3);
-  }
-
-  /* 页面内容区 */
-  .page { display: none; padding: 24px; max-width: 1200px; margin: 0 auto; }
-  .page.active { display: block; }
-
-  /* 卡片 */
-  .card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 16px;
-  }
-
-  .card-title {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text2);
-    margin-bottom: 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .card-title .dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-  }
-
-  /* 输入框 */
-  textarea, input[type=text], input[type=password] {
-    width: 100%;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: 'Noto Sans SC', sans-serif;
-    font-size: 13px;
-    padding: 10px 14px;
-    resize: vertical;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  textarea:focus, input:focus { border-color: var(--accent); }
-
-  /* 按钮 */
-  .btn {
-    padding: 8px 18px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-family: 'Noto Sans SC', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    transition: all 0.2s;
-  }
-
-  .btn-primary {
-    background: var(--accent);
-    color: white;
-  }
-  .btn-primary:hover { background: #3a7af0; }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .btn-ghost {
-    background: var(--bg3);
-    color: var(--text2);
-    border: 1px solid var(--border);
-  }
-  .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
-
-  .btn-green { background: var(--green); color: #fff; }
-  .btn-green:hover { background: #25b87a; }
-
-  .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
-
-  /* 两栏布局 */
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-
-  @media (max-width: 768px) {
-    .two-col, .three-col { grid-template-columns: 1fr; }
-  }
-
-  /* 话术结果区 */
-  .result-box {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    margin-top: 12px;
-  }
-
-  .result-section { margin-bottom: 16px; }
-  .result-label {
-    font-size: 11px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
-    font-weight: 500;
-  }
-
-  /* 意图分析 */
-  .intent-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-  }
-
-  .tag {
-    font-size: 11px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-weight: 500;
-  }
-
-  .tag-A { background: rgba(255,91,91,0.2); color: var(--red); border: 1px solid rgba(255,91,91,0.4); }
-  .tag-B { background: rgba(245,166,35,0.2); color: var(--amber); border: 1px solid rgba(245,166,35,0.4); }
-  .tag-C { background: rgba(46,204,138,0.2); color: var(--green); border: 1px solid rgba(46,204,138,0.4); }
-  .tag-info { background: rgba(79,141,255,0.15); color: var(--accent); border: 1px solid rgba(79,141,255,0.3); }
-
-  /* 话术选项 */
-  .reply-option {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px 14px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-  }
-
-  .reply-option:hover { border-color: var(--accent); background: rgba(79,141,255,0.05); }
-  .reply-option.selected { border-color: var(--accent); background: rgba(79,141,255,0.08); }
-
-  .reply-option-num {
-    font-size: 10px;
-    color: var(--text3);
-    margin-bottom: 4px;
-  }
-
-  .reply-option-text { color: var(--text); line-height: 1.6; font-size: 13px; }
-
-  .copy-btn-inline {
-    position: absolute;
-    right: 10px;
-    top: 10px;
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 4px;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    color: var(--text2);
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-
-  .reply-option:hover .copy-btn-inline { opacity: 1; }
-
-  /* 可编辑发送区 */
-  .send-area {
-    margin-top: 12px;
-    border-top: 1px solid var(--border);
-    padding-top: 12px;
-  }
-
-  .send-area-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
-
-  /* loading */
-  .loading {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--text2);
-    font-size: 13px;
-    padding: 16px 0;
-  }
-
-  .spinner {
-    width: 16px; height: 16px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* 客户列表 */
-  .client-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .client-item:hover { border-color: var(--accent); }
-
-  .client-avatar {
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 700;
-    color: white;
-    flex-shrink: 0;
-  }
-
-  .client-info { flex: 1; min-width: 0; }
-  .client-name { font-weight: 500; font-size: 13px; margin-bottom: 2px; }
-  .client-meta { font-size: 11px; color: var(--text2); }
-  .client-right { text-align: right; flex-shrink: 0; }
-  .client-follow { font-size: 11px; color: var(--text3); margin-top: 3px; }
-
-  /* 对话历史 */
-  .history-list { max-height: 300px; overflow-y: auto; }
-
-  .history-item {
-    padding: 8px 12px;
-    border-left: 2px solid var(--border);
-    margin-bottom: 8px;
-    font-size: 12px;
-    color: var(--text2);
-    line-height: 1.5;
-  }
-
-  .history-item.me { border-left-color: var(--accent); color: var(--text); }
-
-  /* 跟进名单 */
-  .followup-item {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-bottom: 10px;
-  }
-
-  .followup-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-  }
-
-  .followup-name { font-weight: 500; font-size: 14px; }
-  .followup-script {
-    font-size: 12px;
-    color: var(--text2);
-    line-height: 1.6;
-    background: var(--bg2);
-    border-radius: 6px;
-    padding: 10px 12px;
-    border-left: 3px solid var(--accent);
-  }
-
-  /* 设置页 */
-  .setting-group { margin-bottom: 24px; }
-  .setting-label {
-    font-size: 12px;
-    color: var(--text2);
-    margin-bottom: 6px;
-    font-weight: 500;
-  }
-  .setting-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
-
-  /* 飞书同步按钮 */
-  .feishu-sync {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--text2);
-    margin-top: 10px;
-  }
-
-  /* 空状态 */
-  .empty {
-    text-align: center;
-    padding: 40px;
-    color: var(--text3);
-    font-size: 13px;
-  }
-
-  /* 通知 */
-  .toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 18px;
-    font-size: 13px;
-    color: var(--text);
-    z-index: 999;
-    animation: slideUp 0.3s ease;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  }
-
-  @keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
-
-  .divider { height: 1px; background: var(--border); margin: 16px 0; }
-
-  .flex { display: flex; gap: 10px; align-items: center; }
-  .flex-end { justify-content: flex-end; }
-  .mt8 { margin-top: 8px; }
-  .mt12 { margin-top: 12px; }
-  .mb8 { margin-bottom: 8px; }
-
-  /* 客户名下拉 */
-  select {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: 'Noto Sans SC', sans-serif;
-    font-size: 13px;
-    padding: 8px 12px;
-    outline: none;
-    cursor: pointer;
-  }
-  select:focus { border-color: var(--accent); }
-
-  .input-row { display: flex; gap: 10px; align-items: flex-start; }
-
-  .shop-tag {
-    font-size: 12px;
-    padding: 4px 10px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    background: var(--bg3);
-    color: var(--text2);
-    cursor: pointer;
-    transition: all 0.15s;
-    user-select: none;
-  }
-  .shop-tag:hover { border-color: var(--accent); color: var(--accent); }
-  .shop-tag.active {
-    background: rgba(79,141,255,0.15);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .input-row textarea { flex: 1; }
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+:root{--bg:#0f1117;--bg2:#181c27;--bg3:#1e2335;--border:#2a3050;--accent:#4f8dff;--accent2:#7c5cfc;--green:#2ecc8a;--amber:#f5a623;--red:#ff5b5b;--text:#e8eaf0;--text2:#8b91a8;--text3:#555d78;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;height:52px;position:sticky;top:0;z-index:100;}
+.logo{font-size:15px;font-weight:700;color:var(--accent);margin-right:28px;}
+.tabs{display:flex;height:100%;}
+.tab{padding:0 16px;height:100%;display:flex;align-items:center;cursor:pointer;color:var(--text2);font-size:13px;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
+.tab:hover{color:var(--text);}.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.topbar-right{margin-left:auto;}
+.config-badge{font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(255,91,91,.15);color:var(--red);border:1px solid rgba(255,91,91,.3);cursor:pointer;}
+.config-badge.ok{background:rgba(46,204,138,.15);color:var(--green);border-color:rgba(46,204,138,.3);}
+.page{display:none;padding:20px;max-width:1200px;margin:0 auto;}.page.active{display:block;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px;}
+.card-title{font-size:13px;font-weight:500;color:var(--text2);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+textarea,input[type=text],input[type=password],select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Noto Sans SC',sans-serif;font-size:13px;padding:9px 12px;outline:none;transition:border-color .2s;}
+textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:var(--accent);}select{cursor:pointer;}
+.btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-family:'Noto Sans SC',sans-serif;font-size:13px;font-weight:500;transition:all .2s;}
+.btn-primary{background:var(--accent);color:#fff;}.btn-primary:hover{background:#3a7af0;}.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border);}.btn-ghost:hover{color:var(--text);border-color:var(--accent);}
+.btn-sm{padding:5px 12px;font-size:12px;border-radius:6px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:768px){.two-col{grid-template-columns:1fr;}}
+.flex{display:flex;gap:8px;align-items:center;}.flex-end{justify-content:flex-end;}.mt8{margin-top:8px;}.mt12{margin-top:12px;}.mb8{margin-bottom:8px;}
+.tag{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;display:inline-block;}
+.tag-A{background:rgba(255,91,91,.2);color:var(--red);border:1px solid rgba(255,91,91,.4);}
+.tag-B{background:rgba(245,166,35,.2);color:var(--amber);border:1px solid rgba(245,166,35,.4);}
+.tag-C{background:rgba(46,204,138,.2);color:var(--green);border:1px solid rgba(46,204,138,.3);}
+.tag-info{background:rgba(79,141,255,.15);color:var(--accent);border:1px solid rgba(79,141,255,.3);}
+.reply-option{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all .2s;position:relative;}
+.reply-option:hover{border-color:var(--accent);}.reply-option.selected{border-color:var(--accent);background:rgba(79,141,255,.06);}
+.reply-num{font-size:10px;color:var(--text3);margin-bottom:3px;}
+.reply-text{color:var(--text);line-height:1.6;font-size:13px;padding-right:50px;}
+.copy-inline{position:absolute;right:8px;top:8px;font-size:11px;padding:2px 7px;border-radius:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;opacity:0;transition:opacity .2s;}
+.reply-option:hover .copy-inline{opacity:1;}
+.send-area{margin-top:12px;border-top:1px solid var(--border);padding-top:12px;}
+.loading{display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px;padding:14px 0;}
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.empty{text-align:center;padding:32px;color:var(--text3);font-size:13px;}
+.client-item{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all .2s;}
+.client-item:hover{border-color:var(--accent);}
+.client-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;}
+.client-info{flex:1;min-width:0;}.client-name{font-weight:500;font-size:13px;margin-bottom:2px;}.client-meta{font-size:11px;color:var(--text2);}
+.client-right{text-align:right;flex-shrink:0;}.client-follow{font-size:11px;color:var(--text3);margin-top:3px;}
+.followup-item{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;}
+.followup-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.followup-name{font-weight:500;font-size:14px;}
+.followup-script{font-size:12px;color:var(--text2);line-height:1.6;background:var(--bg2);border-radius:6px;padding:10px 12px;border-left:3px solid var(--accent);}
+.shop-tag{font-size:12px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .15s;user-select:none;display:inline-block;}
+.shop-tag:hover{border-color:var(--accent);color:var(--accent);}.shop-tag.active{background:rgba(79,141,255,.15);border-color:var(--accent);color:var(--accent);}
+.mode-hint{font-size:11px;padding:5px 10px;border-radius:6px;margin-bottom:8px;}
+.mode-free{background:rgba(124,92,252,.1);border:1px solid rgba(124,92,252,.25);color:#a78bfa;}
+.mode-client{background:rgba(79,141,255,.1);border:1px solid rgba(79,141,255,.25);color:var(--accent);}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:11px 16px;font-size:13px;color:var(--text);z-index:999;animation:slideUp .3s ease;box-shadow:0 8px 32px rgba(0,0,0,.4);}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.setting-group{margin-bottom:14px;}.setting-label{font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:500;}.setting-hint{font-size:11px;color:var(--text3);margin-top:3px;}
 </style>
 </head>
 <body>
-
 <div class="topbar">
   <div class="logo">云e宝 · 销售助手</div>
   <div class="tabs">
     <div class="tab active" onclick="switchTab('chat')">💬 话术助手</div>
     <div class="tab" onclick="switchTab('clients')">👥 客户台账</div>
     <div class="tab" onclick="switchTab('daily')">📋 每日跟进</div>
-    <div class="tab" onclick="switchTab('style')">🧠 我的风格</div>
     <div class="tab" onclick="switchTab('style')">🧠 风格进化</div>
-    <div class="tab" onclick="switchTab('settings')">⚙️ 配置</div>
+    <div class="tab" onclick="switchTab('settings')">⚙️ 配置备份</div>
   </div>
-  <div class="topbar-right">
-    <div class="config-badge" id="configBadge" onclick="switchTab('settings')">未配置 API</div>
-  </div>
+  <div class="topbar-right"><div class="config-badge" id="configBadge" onclick="switchTab('settings')">未配置API</div></div>
 </div>
 
-<!-- ===== 话术助手 ===== -->
+<!-- 话术助手 -->
 <div class="page active" id="page-chat">
   <div class="two-col">
-    <!-- 左：输入区 -->
     <div>
       <div class="card">
         <div class="card-title"><span class="dot"></span>客户信息</div>
         <div class="flex mb8">
-          <select id="clientSelect" style="flex:1" onchange="loadClientHistory()">
-            <option value="">选择已有客户</option>
+          <select id="clientSelect" style="flex:1" onchange="onSelectChange()">
+            <option value="">— 不选客户：自由提问模式 —</option>
           </select>
-          <input type="text" id="clientName" placeholder="或输入新客户名" style="flex:1">
+          <input type="text" id="clientName" placeholder="或输入新客户名" style="flex:1" oninput="onNameInput()">
         </div>
-        <div style="margin-top:8px">
-          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">店铺类型标签（可多选）</div>
-          <div id="shopTagsRow" style="display:flex;flex-wrap:wrap;gap:6px">
-            <span class="shop-tag" onclick="toggleTag(this,'童装')">童装</span>
-            <span class="shop-tag" onclick="toggleTag(this,'女装')">女装</span>
-            <span class="shop-tag" onclick="toggleTag(this,'男装')">男装</span>
-            <span class="shop-tag" onclick="toggleTag(this,'运动装')">运动装</span>
-            <span class="shop-tag" onclick="toggleTag(this,'批发档口')">批发档口</span>
-            <span class="shop-tag" onclick="toggleTag(this,'在装修')">在装修</span>
-            <span class="shop-tag" onclick="toggleTag(this,'老店升级')">老店升级</span>
-            <span class="shop-tag" onclick="toggleTag(this,'新开店')">新开店</span>
-            <span class="shop-tag" onclick="toggleTag(this,'朋友转介绍')">朋友转介绍</span>
-            <span class="shop-tag" onclick="toggleTag(this,'多门店')">多门店</span>
-            <span class="shop-tag" onclick="toggleTag(this,'单店')">单店</span>
+        <div id="modeHint" class="mode-hint mode-free">自由提问模式：直接问销售顾问，如"给我一个逼单话术"</div>
+        <div style="margin-top:10px">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:5px">微信分组</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px" id="wxGroupRow">
+            <span class="shop-tag" onclick="setWxGroup(this,'A类重点跟进')">A类重点跟进</span>
+            <span class="shop-tag" onclick="setWxGroup(this,'B类培育中')">B类培育中</span>
+            <span class="shop-tag" onclick="setWxGroup(this,'C类待激活')">C类待激活</span>
+            <span class="shop-tag" onclick="setWxGroup(this,'成交客户')">成交客户</span>
+            <span class="shop-tag" onclick="setWxGroup(this,'转介绍来源')">转介绍来源</span>
           </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:5px">AI自动标签（分析后生成）</div>
+          <div id="autoTagsEl" style="min-height:22px;display:flex;flex-wrap:wrap;gap:4px"><span style="font-size:11px;color:var(--text3)">分析后自动出现…</span></div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title"><span class="dot"></span>输入客户消息</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">复制客户发的那条消息粘贴进来，秒出话术 · 支持 Ctrl+Enter 快速提交</div>
-        <div class="input-row">
-          <textarea id="singleMsg" rows="3" placeholder="粘贴客户刚发来的消息…（同一客户连续输入会自动结合上下文）" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){analyzeSingle()}"></textarea>
-        </div>
-        <div class="flex mt8">
-          <div style="flex:1;font-size:11px;color:var(--text3);align-self:center">Mac用 ⌘+Enter · Win用 Ctrl+Enter</div>
+        <div class="card-title"><span class="dot"></span>输入消息</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">选了客户 → 粘贴客户消息生成话术 · 没选客户 → 直接问销售顾问 · ⌘/Ctrl+Enter 提交</div>
+        <textarea id="singleMsg" rows="4" placeholder="【自由提问】给我一个逼单话术&#10;【客户模式】你们系统多少钱（粘贴客户发来的消息）" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')analyzeSingle()"></textarea>
+        <div class="flex mt8 flex-end">
           <button class="btn btn-primary" onclick="analyzeSingle()">分析 · 生成话术</button>
         </div>
       </div>
 
       <div class="card" id="historyCard" style="display:none">
         <div class="card-title" style="justify-content:space-between">
-          <span><span class="dot"></span>与该客户的对话历史</span>
-          <button class="btn btn-ghost btn-sm" onclick="clearHistory()">清空历史</button>
+          <span><span class="dot"></span>对话历史</span>
+          <button class="btn btn-ghost btn-sm" onclick="clearHistory()">清空</button>
         </div>
-        <div id="conversationHistory" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+        <div id="historyEl" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:5px"></div>
       </div>
 
       <div class="card">
-        <div class="card-title"><span class="dot"></span>或粘贴多条对话（收尾总结用）</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">把和客户的历史对话粘进来，系统会解析存入记录，之后用单条输入也能自动结合上下文</div>
-        <textarea id="batchMsg" rows="5" placeholder="直接粘贴微信聊天记录，格式随意：
-
-张老板  14:32
-你们系统多少钱？
-
-我  14:33
-根据您店规模来定，大概几个员工？
-
-张老板  14:35
-就我一个人，小店
-
-导入后单条输入会自动结合这段历史。"></textarea>
+        <div class="card-title"><span class="dot"></span>导入历史对话（分析客户画像，不出话术）</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:7px">粘贴和客户的历史记录 → AI分析画像/标签/跟进时间 → 之后单条输入自动结合上下文<br><span style="color:var(--amber)">⚠ 需先填写客户名才能存档</span></div>
+        <textarea id="batchMsg" rows="5" placeholder="直接粘贴微信聊天记录，格式随意：&#10;&#10;张老板  14:32&#10;你们系统多少钱？&#10;&#10;我  14:35&#10;根据您店规模来定…"></textarea>
         <div class="flex mt8 flex-end">
-          <button class="btn btn-ghost" onclick="analyzeBatch()">导入历史 · 生成话术</button>
+          <button class="btn btn-ghost" onclick="analyzeBatch()">导入历史 · 分析画像</button>
         </div>
-      </div>
-
-      <div class="card" id="quickRepliesCard" style="display:none">
-        <div class="card-title"><span class="dot"></span>快速回复历史</div>
-        <div id="quickRepliesList" style="max-height:200px;overflow-y:auto"></div>
       </div>
     </div>
 
-    <!-- 右：结果区 -->
     <div>
-      <div class="card" id="resultCard">
+      <div class="card">
         <div class="card-title"><span class="dot"></span>AI 分析结果</div>
-        <div class="empty" id="resultEmpty">输入客户消息后，AI 会在这里给出话术建议</div>
+        <div class="empty" id="resultEmpty">在左侧输入消息，AI 会在这里给出话术</div>
         <div id="resultContent" style="display:none">
-
-          <div class="result-section">
-            <div class="result-label">意图判断</div>
-            <div id="intentText" style="font-size:13px;color:var(--text);margin-bottom:8px;line-height:1.6"></div>
-            <div class="intent-row" id="tagsRow"></div>
+          <div style="margin-bottom:12px">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:5px">意图判断</div>
+            <div id="intentEl" style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:8px"></div>
+            <div id="tagsEl" style="display:flex;flex-wrap:wrap;gap:5px"></div>
           </div>
-
-          <div class="result-section">
-            <div class="result-label">推荐话术（点击选择）</div>
-            <div id="repliesContainer"></div>
+          <div style="margin-bottom:12px">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:5px">推荐话术（点击选择）</div>
+            <div id="repliesEl"></div>
           </div>
-
-          <div class="send-area">
-            <div class="send-area-label">修改后复制发送</div>
+          <div class="send-area" id="sendArea">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:5px">修改后复制发送</div>
             <textarea id="editReply" rows="4" placeholder="选择上方话术后可在这里修改…"></textarea>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:6px;margin-top:4px" id="editHint"></div>
-            <div class="flex mt8">
+            <div class="flex mt8" style="flex-wrap:wrap;gap:8px">
               <button class="btn btn-primary" onclick="copyReply()">复制话术</button>
-              <button class="btn btn-green btn-sm" onclick="saveToFeishu()">保存到飞书</button>
-              <span id="saveStatus" style="font-size:11px;color:var(--text3)"></span>
+              <button class="btn btn-ghost btn-sm" onclick="wrapUpClient()">收尾总结</button>
+              <button class="btn btn-ghost btn-sm" onclick="exportCSV()">导出台账</button>
             </div>
+            <div id="wrapUpResult" style="display:none;margin-top:10px;padding:12px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--green)"></div>
           </div>
         </div>
-        <div id="loadingIndicator" style="display:none" class="loading">
-          <div class="spinner"></div> AI 分析中，请稍候…
-        </div>
+        <div id="loadingEl" style="display:none" class="loading"><div class="spinner"></div> AI 分析中…</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ===== 客户台账 ===== -->
+<!-- 客户台账 -->
 <div class="page" id="page-clients">
-  <div class="flex mb8">
-    <input type="text" id="searchClient" placeholder="搜索客户名…" style="max-width:280px" oninput="renderClients()">
-    <select id="filterLevel" onchange="renderClients()">
-      <option value="">全部意向</option>
-      <option value="A">A 热意向</option>
-      <option value="B">B 有兴趣</option>
-      <option value="C">C 了解中</option>
+  <div class="flex mb8" style="flex-wrap:wrap">
+    <input type="text" id="searchClient" placeholder="搜索客户…" style="max-width:220px" oninput="renderClients()">
+    <select id="filterLevel" onchange="renderClients()" style="max-width:140px">
+      <option value="">全部</option><option value="A">A 热意向</option><option value="B">B 有兴趣</option><option value="C">C 了解中</option>
     </select>
-    <button class="btn btn-primary btn-sm" onclick="genDailyFollowup()">生成今日跟进名单</button>
+    <button class="btn btn-primary btn-sm" onclick="genDailyFollowup()">生成今日跟进</button>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">导出 CSV</button>
   </div>
-
   <div id="clientList"></div>
 </div>
 
-<!-- ===== 每日跟进 ===== -->
+<!-- 每日跟进 -->
 <div class="page" id="page-daily">
   <div class="card">
     <div class="card-title"><span class="dot"></span>今日跟进名单</div>
     <div class="flex mb8">
-      <button class="btn btn-primary" onclick="genDailyFollowup()">生成今日跟进名单 + 话术</button>
+      <button class="btn btn-primary" onclick="genDailyFollowup()">生成跟进名单 + 话术</button>
       <button class="btn btn-ghost btn-sm" onclick="exportCSV()">导出 CSV</button>
     </div>
     <div id="dailyList"><div class="empty">点击上方按钮生成今日跟进名单</div></div>
   </div>
 </div>
 
-<!-- ===== 我的风格 ===== -->
+<!-- 风格进化 -->
 <div class="page" id="page-style">
   <div class="two-col">
     <div>
       <div class="card">
-        <div class="card-title"><span class="dot"></span>你的话术风格画像</div>
-        <div id="styleProfile">
-          <div class="empty">还没有学习记录，复制修改过的话术后自动积累</div>
+        <div class="card-title"><span class="dot"></span>我的话术风格</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px">每次复制修改过的话术，AI自动学习你的说话风格，下次生成更像你</div>
+        <div style="display:flex;gap:10px;margin-bottom:14px">
+          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div id="statTotal" style="font-size:22px;font-weight:700;color:var(--accent)">0</div><div style="font-size:10px;color:var(--text3);margin-top:2px">已学习样本</div></div>
+          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div id="statChanged" style="font-size:22px;font-weight:700;color:var(--green)">0</div><div style="font-size:10px;color:var(--text3);margin-top:2px">修改次数</div></div>
         </div>
+        <div id="styleProfileEl" style="min-height:60px;font-size:13px;color:var(--text2);line-height:1.7">还没有足够样本，复制话术后自动积累…</div>
         <div class="flex mt8">
-          <button class="btn btn-primary btn-sm" onclick="analyzeStyle()">重新分析风格</button>
-          <span style="font-size:11px;color:var(--text3);margin-left:8px" id="styleCount"></span>
+          <button class="btn btn-primary btn-sm" onclick="analyzeStyle(false)">重新分析风格</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearStyleLog()">清空重来</button>
         </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>学习记录</div>
-        <div id="styleLog" style="max-height:400px;overflow-y:auto"></div>
       </div>
     </div>
-
     <div>
       <div class="card">
-        <div class="card-title"><span class="dot"></span>风格迭代趋势</div>
-        <div id="styleTrend">
-          <div class="empty">积累5条以上修改记录后显示趋势分析</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>高频用词 / 句式</div>
-        <div id="styleWords">
-          <div class="empty">积累中...</div>
-        </div>
+        <div class="card-title"><span class="dot"></span>学习记录</div>
+        <div id="styleLogEl" style="max-height:500px;overflow-y:auto"><div class="empty">暂无记录</div></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ===== 风格进化 ===== -->
-<div class="page" id="page-style">
-  <div class="two-col">
-    <div>
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>我的话术风格库</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:12px">每次你修改AI话术后自动学习，积累你的个人说话风格</div>
-        <div id="styleStats" style="display:flex;gap:12px;margin-bottom:16px">
-          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
-            <div id="statCount" style="font-size:24px;font-weight:700;color:var(--accent)">0</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px">已学习样本</div>
-          </div>
-          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
-            <div id="statScenes" style="font-size:24px;font-weight:700;color:var(--green)">0</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px">覆盖场景</div>
-          </div>
-          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:12px;text-align:center">
-            <div id="statVersion" style="font-size:24px;font-weight:700;color:var(--amber)">v1</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px">当前版本</div>
-          </div>
-        </div>
-        <div class="card-title"><span class="dot"></span>风格特征分析</div>
-        <div id="styleAnalysis" style="font-size:13px;color:var(--text2);line-height:1.8;background:var(--bg3);border-radius:8px;padding:14px;min-height:80px">
-          还没有足够的学习样本，复制话术发送后自动开始学习…
-        </div>
-        <div class="flex mt8">
-          <button class="btn btn-primary btn-sm" onclick="analyzeStyle()">重新分析风格</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearStyle()">清空重来</button>
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>学习记录</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:10px">每一条都是你修改话术的痕迹，AI从中提炼规律</div>
-        <div id="styleLog" style="max-height:500px;overflow-y:auto"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ===== 配置 ===== -->
+<!-- 配置备份 -->
 <div class="page" id="page-settings">
   <div class="two-col">
     <div>
       <div class="card">
-        <div class="card-title"><span class="dot"></span>DeepSeek API 配置</div>
+        <div class="card-title"><span class="dot"></span>DeepSeek API</div>
         <div class="setting-group">
           <div class="setting-label">API Key</div>
           <input type="password" id="dsKey" placeholder="sk-xxxxxxxx">
-          <div class="setting-hint">在 platform.deepseek.com → API Keys 获取</div>
+          <div class="setting-hint">platform.deepseek.com → API Keys，充值10元可用1-2个月</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="saveSettings()">保存配置</button>
+        <button class="btn btn-primary btn-sm" onclick="saveSettings()">保存</button>
       </div>
-
       <div class="card">
-        <div class="card-title"><span class="dot"></span>飞书多维表格配置</div>
-        <div class="setting-group">
-          <div class="setting-label">App ID</div>
-          <input type="text" id="fsAppId" placeholder="cli_xxxxxxxx">
+        <div class="card-title"><span class="dot"></span>飞书多维表格（可选）</div>
+        <div class="setting-group"><div class="setting-label">App ID</div><input type="text" id="fsAppId" placeholder="cli_xxxxxxxx"></div>
+        <div class="setting-group"><div class="setting-label">App Secret</div><input type="password" id="fsAppSecret" placeholder="xxxxxxxx"></div>
+        <div class="setting-group"><div class="setting-label">App Token（URL中 base/ 后面）</div><input type="text" id="fsAppToken" placeholder="PcHtb..."></div>
+        <div class="setting-group"><div class="setting-label">Table ID（URL中 table= 后面）</div><input type="text" id="fsTableId" placeholder="tblw9..."></div>
+        <button class="btn btn-primary btn-sm" onclick="saveSettings()">保存</button>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>数据备份与恢复</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.7">数据存在当前浏览器本地。换电脑前先导出备份，新设备导入即可完整恢复。</div>
+        <div class="flex" style="flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="exportBackup()">导出备份文件</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">导入备份文件</button>
+          <input type="file" id="importFile" accept=".json" style="display:none" onchange="importBackup(this)">
         </div>
-        <div class="setting-group">
-          <div class="setting-label">App Secret</div>
-          <input type="password" id="fsAppSecret" placeholder="xxxxxxxx">
-        </div>
-        <div class="setting-group">
-          <div class="setting-label">App Token（表格地址中 base/ 后那段）</div>
-          <input type="text" id="fsAppToken" placeholder="PcHtbKdmmaxxqwspNjScdwyEnhb">
-        </div>
-        <div class="setting-group">
-          <div class="setting-label">Table ID（地址中 table= 后那段）</div>
-          <input type="text" id="fsTableId" placeholder="tblw9dnDEIsvBw25">
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="saveSettings()">保存配置</button>
+        <div id="dataStats" style="margin-top:10px"></div>
       </div>
     </div>
-
     <div>
       <div class="card">
         <div class="card-title"><span class="dot"></span>产品知识库</div>
-        <div class="setting-group">
-          <div class="setting-label">直接粘贴知识库内容（产品功能、价格、竞品、QA）</div>
-          <textarea id="knowledgeBase" rows="12" placeholder="把你的产品功能、价格方案、竞品对比、常见问答全部粘贴在这里…
-
-AI 回复话术时会自动参考这里的内容。"></textarea>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="saveSettings()">保存知识库</button>
-      </div>
-
-      <div class="card">
-        <div class="card-title">
-          <span class="dot" style="background:var(--amber)"></span>
-          话术风格库
-          <span id="styleCount" style="margin-left:auto;font-size:11px;color:var(--text3)">共 0 条学习记录</span>
-        </div>
-        <div id="styleAnalysis" style="margin-bottom:12px">
-          <div class="empty" style="padding:20px">复制修改过的话术后，AI 会自动学习你的风格偏好</div>
-        </div>
-        <div class="flex">
-          <button class="btn btn-ghost btn-sm" onclick="genStyleReport()">生成风格分析报告</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearStyleLib()">清空学习记录</button>
-        </div>
+        <div class="setting-label">把产品功能、价格、竞品对比、常见Q&A全部粘贴进来，AI回复时自动参考</div>
+        <textarea id="knowledgeBase" rows="24" style="margin-top:8px" placeholder="建议包含：&#10;1. 各功能解决什么问题&#10;2. 价格方案&#10;3. 竞品对比话术&#10;4. 常见问题Q&A&#10;5. 成功客户案例"></textarea>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveSettings()">保存知识库</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
+var cfg = {dsKey:'',fsAppId:'',fsAppSecret:'',fsAppToken:'',fsTableId:'',knowledgeBase:'',styleLog:[],styleProfile:null};
+var clients = {};
+var currentClient = '';
+var currentAiData = null;
 
-
-// ===== 数据存储 =====
-let cfg = {
-  dsKey: '', fsAppId: '', fsAppSecret: '',
-  fsAppToken: '', fsTableId: '', knowledgeBase: ''
-};
-
-let clients = {}; // { name: { level, pain, stage, follow_days, summary, history:[], lastContact, nextFollow } }
-let currentClient = '';
-let currentAiData = null;
-
-// 从 localStorage 加载
 function loadStorage() {
-  const saved = localStorage.getItem('ynb_cfg');
-  if (saved) cfg = { ...cfg, ...JSON.parse(saved) };
-  const savedClients = localStorage.getItem('ynb_clients');
-  if (savedClients) clients = JSON.parse(savedClients);
-  syncSettingsUI();
-  updateConfigBadge();
-  renderClients();
-  renderClientSelect();
-  renderStyleProfile();
-  renderStyleLog();
+  try{var s=localStorage.getItem('ynb_cfg');if(s)cfg=Object.assign({},cfg,JSON.parse(s));}catch(e){}
+  try{var s2=localStorage.getItem('ynb_clients');if(s2)clients=JSON.parse(s2);}catch(e){}
+  syncSettingsUI();updateConfigBadge();renderClients();renderClientSelect();renderStyleLog();updateDataStats();
 }
-
-function saveStorage() {
-  localStorage.setItem('ynb_cfg', JSON.stringify(cfg));
-  localStorage.setItem('ynb_clients', JSON.stringify(clients));
+function saveStorage(){localStorage.setItem('ynb_cfg',JSON.stringify(cfg));localStorage.setItem('ynb_clients',JSON.stringify(clients));}
+function saveSettings(){
+  cfg.dsKey=document.getElementById('dsKey').value.trim();
+  cfg.fsAppId=document.getElementById('fsAppId').value.trim();
+  cfg.fsAppSecret=document.getElementById('fsAppSecret').value.trim();
+  cfg.fsAppToken=document.getElementById('fsAppToken').value.trim();
+  cfg.fsTableId=document.getElementById('fsTableId').value.trim();
+  cfg.knowledgeBase=document.getElementById('knowledgeBase').value.trim();
+  saveStorage();updateConfigBadge();showToast('配置已保存');
 }
-
-// cfg 里已包含 styleLog 和 styleProfile，随 cfg 一起存储
-
-function syncSettingsUI() {
-  document.getElementById('dsKey').value = cfg.dsKey || '';
-  document.getElementById('fsAppId').value = cfg.fsAppId || '';
-  document.getElementById('fsAppSecret').value = cfg.fsAppSecret || '';
-  document.getElementById('fsAppToken').value = cfg.fsAppToken || '';
-  document.getElementById('fsTableId').value = cfg.fsTableId || '';
-  document.getElementById('knowledgeBase').value = cfg.knowledgeBase || '';
-}
-
-function saveSettings() {
-  cfg.dsKey = document.getElementById('dsKey').value.trim();
-  cfg.fsAppId = document.getElementById('fsAppId').value.trim();
-  cfg.fsAppSecret = document.getElementById('fsAppSecret').value.trim();
-  cfg.fsAppToken = document.getElementById('fsAppToken').value.trim();
-  cfg.fsTableId = document.getElementById('fsTableId').value.trim();
-  cfg.knowledgeBase = document.getElementById('knowledgeBase').value.trim();
-  saveStorage();
-  updateConfigBadge();
-  showToast('配置已保存 ✓');
-}
-
-function updateConfigBadge() {
-  const badge = document.getElementById('configBadge');
-  if (cfg.dsKey) {
-    badge.textContent = 'API 已配置 ✓';
-    badge.className = 'config-badge ok';
-  } else {
-    badge.textContent = '未配置 API';
-    badge.className = 'config-badge';
-  }
-}
-
-// ===== 标签页切换 =====
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i) => {
-    const tabs = ['chat','clients','daily','style','settings'];
-    t.classList.toggle('active', tabs[i] === tab);
+function syncSettingsUI(){
+  ['dsKey','fsAppId','fsAppSecret','fsAppToken','fsTableId','knowledgeBase'].forEach(function(k){
+    var el=document.getElementById(k);if(el)el.value=cfg[k]||'';
   });
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + tab).classList.add('active');
-  if (tab === 'clients') renderClients();
+}
+function updateConfigBadge(){
+  var b=document.getElementById('configBadge');
+  if(cfg.dsKey){b.textContent='API已配置 ✓';b.className='config-badge ok';}
+  else{b.textContent='未配置API';b.className='config-badge';}
+}
+function switchTab(tab){
+  var tabs=['chat','clients','daily','style','settings'];
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',tabs[i]===tab);});
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('page-'+tab).classList.add('active');
+  if(tab==='clients')renderClients();
+  if(tab==='settings')updateDataStats();
 }
 
-// ===== 获取当前客户名 =====
-function getClientName() {
-  const sel = document.getElementById('clientSelect').value;
-  const inp = document.getElementById('clientName').value.trim();
-  return inp || sel || '';
+// 客户名
+function getClientName(){return document.getElementById('clientName').value.trim()||document.getElementById('clientSelect').value||'';}
+function onSelectChange(){
+  var name=document.getElementById('clientSelect').value;
+  document.getElementById('clientName').value='';
+  currentClient=name;
+  updateModeHint();
+  if(name){loadClientTags(name);renderHistory(name);}
+  else{clearTagsUI();document.getElementById('historyCard').style.display='none';}
+}
+function onNameInput(){updateModeHint();}
+function updateModeHint(){
+  var name=getClientName();
+  var hint=document.getElementById('modeHint');
+  if(name){hint.className='mode-hint mode-client';hint.textContent='话术模式：客户「'+name+'」的消息 → 生成针对性话术，结合历史上下文';}
+  else{hint.className='mode-hint mode-free';hint.textContent='自由提问模式：直接问销售顾问，如"给我一个逼单话术"、"客户说太贵了怎么回"';}
+}
+function ensureClient(name){
+  if(!name)return;
+  if(!clients[name])clients[name]={level:'C',pain:'',stage:'初识',follow_days:2,summary:'',tags:[],wxGroup:'',history:[],lastContact:'',nextFollow:''};
+}
+function setWxGroup(el,group){
+  document.querySelectorAll('#wxGroupRow .shop-tag').forEach(function(e){e.classList.remove('active');});
+  el.classList.add('active');
+  var name=getClientName();if(!name)return;
+  ensureClient(name);clients[name].wxGroup=group;saveStorage();
+}
+function loadClientTags(name){
+  document.querySelectorAll('#wxGroupRow .shop-tag').forEach(function(el){el.classList.toggle('active',el.textContent===(clients[name]&&clients[name].wxGroup||''));});
+  renderAutoTags(name);
+}
+function clearTagsUI(){document.querySelectorAll('#wxGroupRow .shop-tag').forEach(function(el){el.classList.remove('active');});document.getElementById('autoTagsEl').innerHTML='<span style="font-size:11px;color:var(--text3)">分析后自动出现…</span>';}
+function renderAutoTags(name){
+  var el=document.getElementById('autoTagsEl');if(!el)return;
+  var tags=(clients[name]&&clients[name].tags)||[];
+  if(!tags.length){el.innerHTML='<span style="font-size:11px;color:var(--text3)">分析后自动出现…</span>';return;}
+  el.innerHTML=tags.map(function(t){return '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(124,92,252,.15);color:#a78bfa;border:1px solid rgba(124,92,252,.3);margin-right:4px">'+t+'</span>';}).join('');
 }
 
-function ensureClient(name) {
-  if (!name) return;
-  if (!clients[name]) {
-    clients[name] = {
-      level: 'C', pain: '', stage: '初识',
-      follow_days: 2, summary: '',
-      history: [],
-      lastContact: new Date().toISOString().slice(0,10),
-      nextFollow: ''
-    };
+// AI 提示词
+function buildPrompt(analysisOnly){
+  var kb=cfg.knowledgeBase||'(未填写知识库)';
+  var styleAddon='';
+  if(cfg.styleProfile&&cfg.styleProfile.advice)styleAddon='\n\n## 我的话术风格\n'+cfg.styleProfile.advice+'\n语气：'+(cfg.styleProfile.tone||'')+'\n避免：'+(cfg.styleProfile.avoid||[]).join('、');
+  var base='你是云e宝服装管理系统的顶级销售顾问，20年经验，擅长读懂客户心理。\n\n## 产品知识库\n'+kb+styleAddon;
+  if(analysisOnly){
+    return base+'\n\n## 任务\n深度分析客户对话，输出JSON（只输出JSON，不要其他内容）：\n{"intent":"客户核心意图","level":"A或B或C","pain":"具体痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标签1","标签2","标签3","标签4","标签5"],"wx_group":"A类重点跟进或B类培育中或C类待激活","replies":[]}\n\n标签维度：店铺类型(童装/女装/男装/运动装/批发档口)、经营状态(新开店/在装修/老店升级/多门店/即将开业)、来源(朋友转介绍/自主搜索)、决策特征(价格敏感/决策快/需审批/技术顾虑)、规模(小微1-2人/中型3-5人/大型6人+)\n等级：A=热意向，B=有兴趣，C=了解中';
+  }else{
+    return base+'\n\n## 任务\n分析客户消息，输出JSON（只输出JSON，不要其他内容）：\n{"intent":"意图概括","level":"A或B或C","pain":"核心痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"摘要","tags":["标签1","标签2","标签3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","replies":["话术1","话术2","话术3"]}\n\n话术要求：像真人说话；场景化不列功能；价格异议先价值再试用；"再想想"追问顾虑；准成交推进预约；每条100字内；follow_days默认2。\n等级：A=热意向，B=有兴趣，C=了解中';
   }
 }
 
-// ===== AI 调用 =====
-function buildSystemPrompt() {
-  var kb = cfg.knowledgeBase || '(请在设置页填写知识库内容)';
-  var styleSection = '';
-  if (cfg.styleProfile && cfg.styleProfile.prompt_addon) {
-    styleSection = '\n\n## 销售人员个人话术风格(必须严格遵守)\n' +
-      cfg.styleProfile.prompt_addon + '\n' +
-      '语气风格:' + (cfg.styleProfile.tone || '') + '\n' +
-      '避免使用:' + (cfg.styleProfile.avoid || []).join('、');
-  }
-  return '你是云e宝服装管理系统的顶级销售顾问，销售经验丰富，擅长读懂客户心理，话术自然不油腻。\n\n' +
-    '## 产品知识库\n' + kb + styleSection + '\n\n' +
-    '## 你的任务\n' +
-    '分析客户消息，输出 JSON 格式（只输出JSON，不要其他内容）：\n' +
-    '{\n' +
-    '  "intent": "客户意图一句话概括",\n' +
-    '  "level": "A或B或C",\n' +
-    '  "pain": "核心痛点",\n' +
-    '  "stage": "初识/咨询/异议/准成交",\n' +
-    '  "follow_days": 建议跟进天数,\n' +
-    '  "summary": "本次对话摘要一句话",\n' +
-    '  "replies": ["话术1", "话术2", "话术3"]\n' +
-    '}\n\n' +
-    '等级说明：A=热意向(问价/要试用/问合同), B=有兴趣(在咨询功能), C=刚了解/闲聊\n\n' +
-    '话术要求：\n' +
-    '- 像真人说话，亲切不油腻，不要"您好！很高兴认识您！"这种开场\n' +
-    '- 针对痛点给场景化描述，不列功能清单\n' +
-    '- 遇到价格异议：先讲价值+省钱逻辑，再给试用降门槛\n' +
-    '- 遇到"再想想"：追问在顾虑什么，引导说出顾虑\n' +
-    '- 遇到准成交信号：立刻推进预约时间\n' +
-    '- 每条话术100字以内，自然口语化\n' +
-    '- 跟进节奏要积极，follow_days默认填2，最多不超过3，竞争激烈要抢先一步';
-}
-
-const SYSTEM_PROMPT = buildSystemPrompt;
-
-async function callAI(userMsg, history = []) {
-  if (!cfg.dsKey) {
-    showToast('请先在设置页填写 DeepSeek API Key');
-    return null;
-  }
-
-  // 把历史记录转成 AI 可读的对话格式
-  // history 里存的是 {role, content, replyUsed} 三元组
-  const historyMessages = [];
-  history.slice(-8).forEach(h => {
-    if (h.role === 'user') {
-      historyMessages.push({ role: 'user', content: '客户说：' + h.content });
-    } else if (h.role === 'assistant' && h.replyUsed) {
-      // 只传我实际发出去的那条话术，不传JSON
-      historyMessages.push({ role: 'assistant', content: '我回复了：' + h.replyUsed });
-    }
+// AI 调用（带历史）
+async function callAI(userMsg,history,analysisOnly){
+  if(!cfg.dsKey){showToast('请先在设置页填写 DeepSeek API Key');return null;}
+  var histMsgs=[];
+  (history||[]).slice(-8).forEach(function(h){
+    if(h.role==='user')histMsgs.push({role:'user',content:'客户说：'+h.content});
+    else if(h.role==='assistant'&&h.replyUsed)histMsgs.push({role:'assistant',content:'我回复了：'+h.replyUsed});
   });
-
-  const messages = [
-    { role: 'system', content: SYSTEM_PROMPT() },
-    ...historyMessages,
-    { role: 'user', content: userMsg }
-  ];
-  const res = await fetch('https://api.deepseek.com/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + cfg.dsKey,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ model: 'deepseek-chat', messages, temperature: 0.75 })
+  var messages=[{role:'system',content:buildPrompt(!!analysisOnly)}].concat(histMsgs).concat([{role:'user',content:userMsg}]);
+  var res=await fetch('https://api.deepseek.com/chat/completions',{
+    method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},
+    body:JSON.stringify({model:'deepseek-chat',messages:messages,temperature:0.75})
   });
-  const data = await res.json();
-  let content = data.choices?.[0]?.message?.content || '';
-  content = content.replace(/```json|```/g, '').trim();
-  return JSON.parse(content);
+  if(!res.ok){var t=await res.text();throw new Error('HTTP '+res.status+': '+t.slice(0,150));}
+  var data=await res.json();
+  if(data.error)throw new Error(data.error.message||'API错误');
+  var content=data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content||'';
+  if(!content)throw new Error('AI返回为空，请检查API Key余额');
+  content=content.replace(/```json/g,'').replace(/```/g,'').trim();
+  var m=content.match(/\{[\s\S]*\}/);
+  if(!m)throw new Error('AI未返回有效JSON：'+content.slice(0,80));
+  return JSON.parse(m[0]);
 }
 
-// ===== 分析单条消息 =====
-async function analyzeSingle() {
-  const name = getClientName();
-  if (!name) { showToast('请先填写客户名'); return; }
-  const msg = document.getElementById('singleMsg').value.trim();
-  if (!msg) { showToast('请输入客户消息'); return; }
+// AI 自由提问
+async function callAIFree(question){
+  if(!cfg.dsKey){showToast('请先在设置页填写 DeepSeek API Key');return null;}
+  var kb=cfg.knowledgeBase||'';
+  var res=await fetch('https://api.deepseek.com/chat/completions',{
+    method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},
+    body:JSON.stringify({model:'deepseek-chat',messages:[
+      {role:'system',content:'你是云e宝服装管理系统的顶级销售顾问，20年经验。'+(kb?'\n\n产品背景：\n'+kb.slice(0,800):'')+'\n\n直接回答销售问题，给出可直接使用的话术或策略，用纯文本回复。'},
+      {role:'user',content:question}
+    ],temperature:0.8})
+  });
+  if(!res.ok){var t=await res.text();throw new Error('HTTP '+res.status+': '+t.slice(0,100));}
+  var data=await res.json();
+  if(data.error)throw new Error(data.error.message||'API错误');
+  return data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content||'';
+}
 
-  ensureClient(name);
-  currentClient = name;
-  // 保存当前选中的标签
-  const activeTags = [...document.querySelectorAll('.shop-tag.active')].map(el => el.textContent);
-  if (activeTags.length) clients[name].shopTags = activeTags;
+// 分析单条
+async function analyzeSingle(){
+  var name=getClientName();
+  var msg=document.getElementById('singleMsg').value.trim();
+  if(!msg){showToast('请输入消息内容');return;}
+  document.getElementById('sendArea').style.display='block';
   showLoading(true);
-
-  try {
-    const history = (clients[name].history || []).map(h => ({
-      role: h.role, content: h.content
-    }));
-    const data = await callAI(`客户【${name}】说：${msg}`, history);
-    if (!data) return;
-
-    // 保存历史（客户消息）
-    clients[name].history = clients[name].history || [];
-    clients[name].history.push({ role: 'user', content: msg });
-    renderConversationHistory(name);
-
-    updateClientData(name, data);
-    renderResult(data, msg);
-    currentAiData = data;
-    renderClientSelect();
-    renderClients();
-    saveStorage();
-  } catch(e) {
-    showToast('AI 调用失败：' + e.message);
-  } finally {
-    showLoading(false);
+  if(!name){
+    // 自由提问模式
+    try{var answer=await callAIFree(msg);if(answer)renderFree(answer);}
+    catch(e){showToast('调用失败：'+e.message);console.error(e);}
+    finally{showLoading(false);}
+    return;
   }
+  // 话术分析模式
+  ensureClient(name);currentClient=name;
+  try{
+    var data=await callAI('客户【'+name+'】说：'+msg,clients[name].history,false);
+    if(!data)return;
+    clients[name].history=clients[name].history||[];
+    clients[name].history.push({role:'user',content:msg,replyUsed:null});
+    updateClientData(name,data);
+    renderResult(data);
+    renderHistory(name);
+    renderClientSelect();renderClients();saveStorage();
+  }catch(e){showToast('调用失败：'+e.message);console.error(e);}
+  finally{showLoading(false);}
 }
 
-// ===== 清洗微信聊天记录格式 =====
-function cleanWechatLog(raw, clientName) {
-  // 微信PC复制出来的格式：
-  // 「张老板 2025/3/19 14:32」
-  // 你好，想了解一下你们系统
-  // 「我 2025/3/19 14:33」
-  // 您好！请问您店里...
-  // 也有可能是：张老板  14:32\n内容
-  // 统一转成：客户：xxx / 我：xxx
-
-  const lines = raw.split('\n').map(l => l.trim()).filter(l => l);
-  const result = [];
-  let currentRole = '';
-  let myNames = ['我', '自己', '销售'];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // 匹配「名字 时间」格式
-    const headerMatch = line.match(/^[「『]?(.+?)\s+\d{4}[\/-]\d{1,2}[\/-]\d{1,2}\s+\d{1,2}:\d{2}[」』]?$/) ||
-                        line.match(/^[「『]?(.+?)\s+\d{1,2}:\d{2}[」』]?$/) ||
-                        line.match(/^(.+?)\s{2,}\d{1,2}:\d{2}$/);
-
-    if (headerMatch) {
-      const speaker = headerMatch[1].trim();
-      // 判断是我还是客户
-      if (myNames.includes(speaker) || speaker === clientName + '（我）') {
-        currentRole = '我';
-      } else if (speaker === clientName || (!myNames.includes(speaker) && speaker.length < 10)) {
-        currentRole = '客户';
-      } else {
-        currentRole = '我';
-      }
-      continue;
-    }
-
-    // 跳过纯时间行
-    if (/^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/.test(line)) continue;
-    if (/^\d{1,2}:\d{2}$/.test(line)) continue;
-    // 跳过系统消息
-    if (line.includes('以下为新消息') || line.includes('对方正在') || line === '[图片]' || line === '[语音]') continue;
-
-    if (line && currentRole) {
-      result.push(`${currentRole}：${line}`);
-    } else if (line && !currentRole) {
-      // 没有头部信息，尝试判断是否是「名字：内容」格式
-      const colonMatch = line.match(/^(.{1,8})：(.+)$/);
-      if (colonMatch) {
-        const speaker = colonMatch[1];
-        const content = colonMatch[2];
-        const role = myNames.includes(speaker) ? '我' : '客户';
-        result.push(`${role}：${content}`);
-      } else {
-        result.push(line);
-      }
-    }
-  }
-
-  return result.join('\n') || raw;
+function renderFree(text){
+  showResult();
+  document.getElementById('intentEl').textContent='销售顾问回答';
+  document.getElementById('tagsEl').innerHTML='<span class="tag tag-info">自由提问</span><span class="tag" style="background:rgba(139,145,168,.15);color:var(--text2);border:1px solid var(--border)">未绑定客户</span>';
+  document.getElementById('repliesEl').innerHTML='<div style="background:var(--bg3);border-radius:8px;padding:14px;border-left:3px solid var(--accent);white-space:pre-wrap;font-size:13px;color:var(--text);line-height:1.8">'+text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+  document.getElementById('editReply').value=text;
 }
 
-// ===== 分析整段对话 =====
-async function analyzeBatch() {
-  const name = getClientName();
-  if (!name) { showToast('请先填写客户名'); return; }
-  const batch = document.getElementById('batchMsg').value.trim();
-  if (!batch) { showToast('请粘贴对话记录'); return; }
-
-  ensureClient(name);
-  currentClient = name;
+// 导入历史批量
+async function analyzeBatch(){
+  var name=getClientName();
+  var batch=document.getElementById('batchMsg').value.trim();
+  if(!batch){showToast('请先粘贴对话记录');return;}
+  if(!name){showToast('请先填写客户名，才能将历史存入档案');document.getElementById('clientName').focus();return;}
+  ensureClient(name);currentClient=name;
   showLoading(true);
-
-  try {
-    // 自动清洗微信格式
-    const cleaned = cleanWechatLog(batch, name);
-    const data = await callAI(`以下是与客户【${name}】的完整对话记录，请分析并给出下一步回复话术：\n\n${cleaned}`);
-    if (!data) return;
-    updateClientData(name, data);
-    renderResult(data, '（整段对话分析）');
-    currentAiData = data;
-    renderClientSelect();
-    renderClients();
-    saveStorage();
-  } catch(e) {
-    showToast('AI 调用失败：' + e.message);
-  } finally {
-    showLoading(false);
-  }
+  try{
+    var cleaned=cleanWechat(batch,name);
+    parseBatch(name,cleaned);
+    var data=await callAI('请深度分析客户【'+name+'】的对话情况，给出客户画像。',clients[name].history,true);
+    if(!data)return;
+    updateClientData(name,data);
+    renderAutoTags(name);
+    renderBatchResult(name,data);
+    renderHistory(name);
+    renderClientSelect();renderClients();saveStorage();
+    document.getElementById('batchMsg').value='';
+    showToast('历史已导入，画像分析完成 ✓ 现在单条输入会自动结合上下文');
+  }catch(e){showToast('调用失败：'+e.message);console.error(e);}
+  finally{showLoading(false);}
 }
 
-function updateClientData(name, data) {
-  const today = new Date();
-  const follow = new Date(today);
-  follow.setDate(today.getDate() + (data.follow_days || 2));
-  clients[name] = {
-    ...clients[name],
-    level: data.level || 'C',
-    pain: data.pain || '',
-    stage: data.stage || '咨询',
-    follow_days: data.follow_days || 2,
-    summary: data.summary || '',
-    lastContact: today.toISOString().slice(0,10),
-    nextFollow: follow.toISOString().slice(0,10)
-  };
+function cleanWechat(raw,clientName){
+  var lines=raw.split('\n').map(function(l){return l.trim();}).filter(function(l){return l;});
+  var result=[];var role='';var myNames=['我','自己','销售'];
+  lines.forEach(function(line){
+    var hm=line.match(/^[「『]?(.+?)\s+\d{4}[\/-]\d{1,2}[\/-]\d{1,2}\s+\d{1,2}:\d{2}[」』]?$/)||
+           line.match(/^[「『]?(.+?)\s+\d{1,2}:\d{2}[」』]?$/)||
+           line.match(/^(.+?)\s{2,}\d{1,2}:\d{2}$/);
+    if(hm){var sp=hm[1].trim();role=myNames.includes(sp)?'我':(sp===clientName||(!myNames.includes(sp)&&sp.length<10)?'客户':'我');return;}
+    if(/^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/.test(line)||/^\d{1,2}:\d{2}$/.test(line))return;
+    if(['以下为新消息','对方正在','[图片]','[语音]','[视频]'].some(function(k){return line.includes(k);}))return;
+    if(line&&role){result.push(role+'：'+line);}
+    else if(line){var cm=line.match(/^(.{1,8})：(.+)$/);if(cm)result.push((myNames.includes(cm[1])?'我':'客户')+'：'+cm[2]);else result.push(line);}
+  });
+  return result.join('\n')||raw;
 }
 
-// ===== 渲染结果 =====
-function renderResult(data, msg) {
-  document.getElementById('resultEmpty').style.display = 'none';
-  document.getElementById('resultContent').style.display = 'block';
+function parseBatch(name,cleaned){
+  var lines=cleaned.split('\n').filter(function(l){return l.trim();});
+  var newH=[];
+  lines.forEach(function(line){
+    var cm=line.match(/^客户：(.+)$/);var mm=line.match(/^我：(.+)$/);
+    if(cm)newH.push({role:'user',content:cm[1].trim(),replyUsed:null});
+    else if(mm){var txt=mm[1].trim();if(newH.length>0){var last=newH[newH.length-1];if(last.role==='user'&&!last.replyUsed)last.replyUsed=txt;}newH.push({role:'assistant',content:txt,replyUsed:txt});}
+  });
+  var existing=new Set((clients[name].history||[]).map(function(h){return h.content;}));
+  var toAdd=newH.filter(function(h){return !existing.has(h.content);});
+  clients[name].history=(clients[name].history||[]).concat(toAdd);
+}
 
-  document.getElementById('intentText').textContent = data.intent || '';
-
-  const tagsRow = document.getElementById('tagsRow');
-  tagsRow.innerHTML = `
-    <span class="tag tag-${data.level}">${data.level}级意向</span>
-    <span class="tag tag-info">阶段：${data.stage}</span>
-    <span class="tag tag-info">痛点：${data.pain}</span>
-    <span class="tag" style="background:rgba(139,145,168,0.15);color:var(--text2);border:1px solid var(--border)">${data.follow_days}天后跟进</span>
-  `;
-
-  const container = document.getElementById('repliesContainer');
-  container.innerHTML = '';
-  (data.replies || []).forEach((reply, i) => {
-    const div = document.createElement('div');
-    div.className = 'reply-option';
-    div.innerHTML = `
-      <div class="reply-option-num">话术 ${i+1}</div>
-      <div class="reply-option-text">${reply}</div>
-      <button class="copy-btn-inline" onclick="copyText(event,'${reply.replace(/'/g,"\\'")}')">复制</button>
-    `;
-    div.onclick = (e) => {
-      if (e.target.classList.contains('copy-btn-inline')) return;
-      document.querySelectorAll('.reply-option').forEach(el => el.classList.remove('selected'));
-      div.classList.add('selected');
-      document.getElementById('editReply').value = reply;
-    };
+function renderResult(data){
+  showResult();
+  document.getElementById('intentEl').textContent=data.intent||'';
+  var autoTags=(data.tags||[]).map(function(t){return '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(124,92,252,.15);color:#a78bfa;border:1px solid rgba(124,92,252,.3)">'+t+'</span>';}).join('');
+  document.getElementById('tagsEl').innerHTML='<span class="tag tag-'+(data.level||'C')+'">'+(data.level||'C')+'级 · '+(data.wx_group||'')+'</span><span class="tag tag-info">'+(data.stage||'')+'</span><span class="tag" style="background:rgba(139,145,168,.15);color:var(--text2);border:1px solid var(--border)">'+(data.follow_days||2)+'天后跟进</span>'+autoTags;
+  var container=document.getElementById('repliesEl');container.innerHTML='';
+  (data.replies||[]).forEach(function(reply,i){
+    if(!reply)return;
+    var div=document.createElement('div');div.className='reply-option';
+    div.innerHTML='<div class="reply-num">话术 '+(i+1)+'</div><div class="reply-text">'+reply+'</div><button class="copy-inline" onclick="copyText(event,this.getAttribute(\'data-t\'))" data-t="'+reply.replace(/"/g,'&quot;')+'">复制</button>';
+    div.onclick=function(e){if(e.target.classList.contains('copy-inline'))return;document.querySelectorAll('.reply-option').forEach(function(el){el.classList.remove('selected');});div.classList.add('selected');document.getElementById('editReply').value=reply;};
     container.appendChild(div);
   });
-
-  // 默认选第一条
-  if (data.replies?.length) {
-    container.firstChild.classList.add('selected');
-    document.getElementById('editReply').value = data.replies[0];
-  }
+  if(container.firstChild){container.firstChild.classList.add('selected');document.getElementById('editReply').value=(data.replies||[])[0]||'';}
+  currentAiData=data;
 }
 
-function copyText(e, text) {
-  e.stopPropagation();
-  navigator.clipboard.writeText(text).then(() => showToast('已复制 ✓'));
+function renderBatchResult(name,data){
+  showResult();
+  document.getElementById('intentEl').textContent=data.intent||'';
+  var autoTags=(data.tags||[]).map(function(t){return '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(124,92,252,.15);color:#a78bfa;border:1px solid rgba(124,92,252,.3)">'+t+'</span>';}).join('');
+  document.getElementById('tagsEl').innerHTML='<span class="tag tag-'+(data.level||'C')+'">'+(data.level||'C')+'级 · '+(data.wx_group||'')+'</span><span class="tag tag-info">'+(data.stage||'')+'</span><span class="tag" style="background:rgba(139,145,168,.15);color:var(--text2);border:1px solid var(--border)">'+(data.follow_days||2)+'天后跟进</span>'+autoTags;
+  document.getElementById('repliesEl').innerHTML=
+    '<div style="background:var(--bg3);border-radius:8px;padding:14px;border-left:3px solid var(--accent)">'+
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">客户画像（历史对话分析）</div>'+
+    pRow('核心痛点',data.pain||'')+pRow('当前阶段',data.stage||'')+pRow('建议跟进',(data.follow_days||2)+'天内主动联系')+pRow('微信分组',data.wx_group||'')+pRow('画像摘要',data.summary||'')+
+    '</div><div style="margin-top:8px;padding:10px;background:rgba(79,141,255,.06);border-radius:8px;font-size:12px;color:var(--text2)">历史已存入记忆，在上方输入框粘贴最新消息，AI会结合历史生成精准话术</div>';
+  document.getElementById('editReply').value='';
 }
 
-function copyReply() {
-  const finalText = document.getElementById('editReply').value.trim();
-  if (!finalText) return;
-  navigator.clipboard.writeText(finalText).then(() => showToast('话术已复制，去微信粘贴发送 ✓'));
+function pRow(label,value){return '<div style="display:flex;gap:8px;font-size:12px;margin-bottom:6px"><span style="color:var(--text3);min-width:56px;flex-shrink:0">'+label+'</span><span style="color:var(--text)">'+value+'</span></div>';}
 
-  // 保存到客户历史
-  if (currentClient && clients[currentClient]) {
-    clients[currentClient].history = clients[currentClient].history || [];
-    clients[currentClient].history.push({ role: 'assistant', content: finalText });
+function updateClientData(name,data){
+  var today=new Date();var follow=new Date(today);follow.setDate(today.getDate()+(data.follow_days||2));
+  clients[name]=Object.assign({},clients[name],{level:data.level||'C',pain:data.pain||'',stage:data.stage||'咨询',follow_days:data.follow_days||2,summary:data.summary||'',tags:data.tags||clients[name].tags||[],wxGroup:data.wx_group||clients[name].wxGroup||'',lastContact:today.toISOString().slice(0,10),nextFollow:follow.toISOString().slice(0,10)});
+}
+
+function showResult(){document.getElementById('resultEmpty').style.display='none';document.getElementById('resultContent').style.display='block';}
+
+// 复制话术 + 学习
+function copyReply(){
+  var text=document.getElementById('editReply').value.trim();
+  if(!text)return;
+  navigator.clipboard.writeText(text).then(function(){showToast('话术已复制，去微信粘贴发送 ✓');});
+  if(currentClient&&clients[currentClient]){
+    var h=clients[currentClient].history||[];
+    if(h.length>0&&h[h.length-1].role==='user')h[h.length-1].replyUsed=text;
+    h.push({role:'assistant',content:text,replyUsed:text});
+    clients[currentClient].history=h;
+    renderHistory(currentClient);
   }
-
-  // 自动学习：对比AI原版和你的最终版本
-  const aiReplies = currentAiData?.replies || [];
-  const selectedEl = document.querySelector('.reply-option.selected .reply-option-text');
-  const aiOriginal = selectedEl ? selectedEl.textContent : (aiReplies[0] || '');
-
-  if (aiOriginal && finalText !== aiOriginal) {
-    // 有修改，记录学习样本
-    learnFromEdit(aiOriginal, finalText, currentAiData);
-  } else if (aiOriginal && finalText === aiOriginal) {
-    // 没修改，也记录（表示AI这次说对了）
-    learnFromEdit(aiOriginal, finalText, currentAiData, true);
-  }
-
+  if(currentAiData&&currentAiData.replies&&currentAiData.replies[0]){learnFromEdit(currentAiData.replies[0],text,currentAiData);}
   saveStorage();
 }
+function copyText(e,text){e.stopPropagation();navigator.clipboard.writeText(text).then(function(){showToast('已复制 ✓');});}
 
-// ===== 自动学习系统 =====
-function learnFromEdit(aiVersion, myVersion, context, noChange = false) {
-  if (!cfg.styleLog) cfg.styleLog = [];
+// 风格学习
+function learnFromEdit(ai,mine,ctx){
+  if(!cfg.styleLog)cfg.styleLog=[];
+  cfg.styleLog.unshift({time:new Date().toISOString(),scene:ctx.stage||'',ai:ai,mine:mine,changed:ai.trim()!==mine.trim()});
+  if(cfg.styleLog.length>200)cfg.styleLog=cfg.styleLog.slice(0,200);
+  var changed=cfg.styleLog.filter(function(e){return e.changed;}).length;
+  if(changed>0&&changed%5===0)setTimeout(function(){analyzeStyle(true);},1000);
+  renderStyleLog();saveStorage();
+}
+async function analyzeStyle(silent){
+  var changed=(cfg.styleLog||[]).filter(function(e){return e.changed;});
+  if(changed.length<3){if(!silent)showToast('至少需要3条修改记录才能分析');return;}
+  if(!cfg.dsKey)return;
+  if(!silent)showToast('正在分析话术风格…');
+  var samples=changed.slice(0,20).map(function(s,i){return '样本'+(i+1)+':\nAI版：'+s.ai+'\n我的版：'+s.mine;}).join('\n\n');
+  try{
+    var res=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'分析销售人员话术风格，输出JSON。'},{role:'user',content:'分析以下修改记录，输出JSON：{"summary":"风格总结","traits":["特征1","特征2","特征3"],"tone":"语气","avoid":["避免1","避免2"],"advice":"给AI的优化提示词（让AI下次更像他说话）"}\n\n'+samples}],temperature:0.5})});
+    var data=await res.json();
+    var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'{}';
+    txt=txt.replace(/```json|```/g,'').trim();
+    var m=txt.match(/\{[\s\S]*\}/);
+    if(m){cfg.styleProfile=JSON.parse(m[0]);cfg.styleProfileTime=new Date().toISOString();saveStorage();renderStyleProfileDisplay();}
+    if(!silent)showToast('风格分析完成 ✓');
+  }catch(e){if(!silent)showToast('分析失败：'+e.message);}
+}
+function renderStyleProfileDisplay(){
+  var el=document.getElementById('styleProfileEl');if(!el)return;
+  var s=cfg.styleProfile;
+  if(!s){el.textContent='还没有足够样本…';return;}
+  el.innerHTML='<div style="font-weight:500;color:var(--text);margin-bottom:8px">'+(s.summary||'')+'</div>'+
+    '<div style="margin-bottom:6px">'+(s.traits||[]).map(function(t){return '<span class="tag tag-info" style="margin:2px">'+t+'</span>';}).join('')+'</div>'+
+    '<div style="font-size:12px;color:var(--text2)">语气：'+(s.tone||'')+'</div>'+
+    '<div style="font-size:12px;color:var(--text2);margin-top:3px">避免：'+(s.avoid||[]).join('、')+'</div>';
+}
+function renderStyleLog(){
+  var el=document.getElementById('styleLogEl');if(!el)return;
+  var logs=cfg.styleLog||[];
+  var t=document.getElementById('statTotal');var c=document.getElementById('statChanged');
+  if(t)t.textContent=logs.length;if(c)c.textContent=logs.filter(function(e){return e.changed;}).length;
+  renderStyleProfileDisplay();
+  if(!logs.length){el.innerHTML='<div class="empty">暂无记录</div>';return;}
+  el.innerHTML=logs.slice(0,50).map(function(log){
+    return '<div style="padding:9px 12px;border-left:2px solid '+(log.changed?'var(--accent)':'var(--border)')+';margin-bottom:7px;background:var(--bg3);border-radius:0 6px 6px 0">'+
+      '<div style="font-size:10px;color:var(--text3);margin-bottom:3px">'+new Date(log.time).toLocaleString()+' · '+log.scene+'</div>'+
+      (log.changed?'<div style="font-size:11px;color:var(--text3);text-decoration:line-through;margin-bottom:3px">'+log.ai.slice(0,60)+(log.ai.length>60?'…':'')+'</div>'+
+      '<div style="font-size:11px;color:var(--text)">'+log.mine.slice(0,60)+(log.mine.length>60?'…':'')+'</div>':
+      '<div style="font-size:11px;color:var(--text3)">直接采用了AI话术</div>')+'</div>';
+  }).join('');
+}
+function clearStyleLog(){if(!confirm('确定清空所有学习记录？'))return;cfg.styleLog=[];cfg.styleProfile=null;saveStorage();renderStyleLog();}
 
-  const entry = {
-    time: new Date().toISOString(),
-    scene: context?.stage || '',
-    pain: context?.pain || '',
-    level: context?.level || '',
-    ai: aiVersion,
-    mine: myVersion,
-    changed: !noChange,
-    diff: noChange ? '未修改（AI表现良好）' : getDiff(aiVersion, myVersion)
+// 收尾总结
+async function wrapUpClient(){
+  var name=getClientName();if(!name){showToast('请先选择客户');return;}
+  if(!cfg.dsKey){showToast('请先配置API Key');return;}
+  var history=clients[name]&&clients[name].history||[];
+  if(history.length<2){showToast('对话记录太少，先分析几条消息再收尾');return;}
+  var btn=event.target;btn.disabled=true;btn.textContent='总结中…';
+  var histTxt=history.slice(-20).map(function(h){return (h.role==='user'?'客户':'我')+'：'+h.content;}).join('\n');
+  try{
+    var res=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你是销售顾问，分析对话，输出JSON：{"status":"客户现状","level":"A/B/C","key_concern":"核心顾虑","next_action":"下一步行动","next_script":"跟进话术60字内","follow_days":2}'},{role:'user',content:'分析客户【'+name+'】的对话：\n\n'+histTxt}],temperature:0.5})});
+    var data=await res.json();
+    var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'{}';
+    txt=txt.replace(/```json|```/g,'').trim();var m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error('格式错误');
+    var result=JSON.parse(m[0]);
+    var today=new Date();var fd=new Date(today);fd.setDate(today.getDate()+(result.follow_days||2));
+    clients[name]=Object.assign({},clients[name],{level:result.level||clients[name].level,stage:result.status||'',summary:result.key_concern||'',nextFollow:fd.toISOString().slice(0,10),lastContact:today.toISOString().slice(0,10)});
+    saveStorage();renderClients();
+    var wrap=document.getElementById('wrapUpResult');wrap.style.display='block';
+    wrap.innerHTML='<div style="font-size:12px;color:var(--green);margin-bottom:8px">收尾总结完成 ✓</div>'+pRow('客户状态',result.status||'')+pRow('核心顾虑',result.key_concern||'')+pRow('下一步',result.next_action||'')+
+      '<div style="margin-top:8px;padding:8px;background:var(--bg2);border-radius:6px;font-size:12px;color:var(--text2)">'+(result.next_script||'')+'</div>'+
+      '<button class="btn btn-ghost btn-sm" style="margin-top:6px" data-script="'+(result.next_script||'').replace(/"/g,'&quot;')+'" onclick="navigator.clipboard.writeText(this.getAttribute(\'data-script\')).then(function(){showToast(\'已复制\');})">复制跟进话术</button>';
+    showToast('收尾完成，台账已更新 ✓');
+  }catch(e){showToast('总结失败：'+e.message);}
+  finally{btn.disabled=false;btn.textContent='收尾总结';}
+}
+
+// 对话历史
+function renderHistory(name){
+  var card=document.getElementById('historyCard');var el=document.getElementById('historyEl');if(!card||!el)return;
+  var history=clients[name]&&clients[name].history||[];
+  if(!history.length){card.style.display='none';return;}
+  card.style.display='block';
+  el.innerHTML=history.slice(-12).map(function(h){
+    var isUser=h.role==='user';var text=isUser?h.content:(h.replyUsed||h.content);
+    return '<div style="padding:7px 10px;border-radius:7px;background:'+(isUser?'rgba(79,141,255,.08)':'rgba(46,204,138,.08)')+';border:1px solid '+(isUser?'rgba(79,141,255,.3)':'rgba(46,204,138,.3)')+'">'+
+      '<div style="font-size:10px;color:'+(isUser?'var(--accent)':'var(--green)')+';font-weight:500;margin-bottom:2px">'+(isUser?'客户':'我')+'</div>'+
+      '<div style="font-size:12px;color:var(--text);line-height:1.6">'+text+'</div></div>';
+  }).join('');
+  el.scrollTop=el.scrollHeight;
+}
+function clearHistory(){if(!currentClient)return;if(!confirm('确定清空与'+currentClient+'的对话历史？'))return;clients[currentClient].history=[];saveStorage();document.getElementById('historyCard').style.display='none';showToast('已清空');}
+
+// 客户台账
+function renderClientSelect(){
+  var sel=document.getElementById('clientSelect');var cur=sel.value;
+  sel.innerHTML='<option value="">— 不选客户：自由提问模式 —</option>';
+  Object.keys(clients).sort().forEach(function(name){
+    var opt=document.createElement('option');opt.value=name;opt.textContent=name+'（'+clients[name].level+'级）';
+    if(name===cur)opt.selected=true;sel.appendChild(opt);
+  });
+}
+function renderClients(){
+  var search=(document.getElementById('searchClient')&&document.getElementById('searchClient').value||'').toLowerCase();
+  var fl=document.getElementById('filterLevel')&&document.getElementById('filterLevel').value||'';
+  var list=document.getElementById('clientList');if(!list)return;
+  var names=Object.keys(clients).filter(function(n){return(!search||n.toLowerCase().includes(search))&&(!fl||clients[n].level===fl);});
+  if(!names.length){list.innerHTML='<div class="empty">暂无客户记录</div>';return;}
+  names.sort(function(a,b){return ({A:0,B:1,C:2}[clients[a].level]||2)-({A:0,B:1,C:2}[clients[b].level]||2);});
+  list.innerHTML=names.map(function(name){
+    var c=clients[name];
+    var tags=(c.tags||[]).slice(0,3).map(function(t){return '<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(124,92,252,.12);color:#a78bfa;border:1px solid rgba(124,92,252,.25);margin-right:3px">'+t+'</span>';}).join('');
+    var wxTag=c.wxGroup?'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(46,204,138,.12);color:var(--green);border:1px solid rgba(46,204,138,.25);margin-right:4px">'+c.wxGroup+'</span>':'';
+    return '<div class="client-item" onclick="openClient(\''+name+'\')">'+
+      '<div class="client-avatar">'+name.slice(0,1)+'</div>'+
+      '<div class="client-info"><div class="client-name">'+name+'</div>'+
+      '<div class="client-meta">'+wxTag+tags+'</div>'+
+      '<div class="client-meta" style="margin-top:2px">'+(c.stage||'')+' · '+(c.pain||'未知痛点')+'</div></div>'+
+      '<div class="client-right"><span class="tag tag-'+(c.level||'C')+'">'+(c.level||'C')+'级</span><div class="client-follow">跟进：'+(c.nextFollow||'未设置')+'</div></div></div>';
+  }).join('');
+}
+function openClient(name){
+  document.getElementById('clientSelect').value=name;document.getElementById('clientName').value='';
+  currentClient=name;updateModeHint();loadClientTags(name);renderHistory(name);switchTab('chat');
+}
+
+// 每日跟进
+async function genDailyFollowup(){
+  var today=new Date().toISOString().slice(0,10);
+  var toFollow=Object.entries(clients).filter(function(e){return e[1].nextFollow&&e[1].nextFollow<=today;}).sort(function(a,b){return ({A:0,B:1,C:2}[a[1].level]||2)-({A:0,B:1,C:2}[b[1].level]||2);});
+  if(!toFollow.length){document.getElementById('dailyList').innerHTML='<div class="empty">今天暂无需跟进的客户 🎉</div>';switchTab('daily');return;}
+  document.getElementById('dailyList').innerHTML='<div class="loading"><div class="spinner"></div> 生成跟进话术…</div>';
+  switchTab('daily');var results=[];
+  for(var i=0;i<toFollow.length;i++){
+    var name=toFollow[i][0];var c=toFollow[i][1];
+    try{
+      var res=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你是资深销售顾问，生成自然跟进话术。'},{role:'user',content:'客户【'+name+'】'+c.level+'级，痛点：'+c.pain+'，阶段：'+c.stage+'。生成一条60字内自然跟进话术，不要太正式，只输出话术。'}],temperature:0.8})});
+      var data=await res.json();results.push({name:name,c:c,script:(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||''});
+    }catch(e){results.push({name:name,c:c,script:'（生成失败）'});}
+  }
+  document.getElementById('dailyList').innerHTML=results.map(function(r){
+    return '<div class="followup-item"><div class="followup-hd">'+
+      '<div><span class="followup-name">'+r.name+'</span><span class="tag tag-'+(r.c.level||'C')+'" style="margin-left:8px">'+(r.c.level||'C')+'级</span></div>'+
+      '<button class="btn btn-ghost btn-sm" data-t="'+r.script.replace(/"/g,'&quot;')+'" onclick="navigator.clipboard.writeText(this.getAttribute(\'data-t\')).then(function(){showToast(\'已复制\');})">复制话术</button>'+
+      '</div><div style="font-size:11px;color:var(--text3);margin-bottom:6px">痛点：'+r.c.pain+' · 上次：'+r.c.lastContact+'</div>'+
+      '<div class="followup-script">'+r.script+'</div></div>';
+  }).join('');
+}
+
+// 导出CSV
+function exportCSV(){
+  var rows=[['客户名','微信分组','意向等级','AI标签','核心痛点','当前阶段','最后沟通','下次跟进','摘要']];
+  Object.entries(clients).forEach(function(e){var n=e[0];var c=e[1];rows.push([n,c.wxGroup||'',c.level||'',(c.tags||[]).join('/'),c.pain||'',c.stage||'',c.lastContact||'',c.nextFollow||'',c.summary||'']);});
+  var csv=rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download='客户台账_'+new Date().toISOString().slice(0,10)+'.csv';a.click();showToast('CSV已导出 ✓');
+}
+
+// 备份
+function exportBackup(){
+  var backup={version:'1.0',exportTime:new Date().toISOString(),cfg:{fsAppToken:cfg.fsAppToken,fsTableId:cfg.fsTableId,knowledgeBase:cfg.knowledgeBase,styleLog:cfg.styleLog||[],styleProfile:cfg.styleProfile},clients:clients};
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}));
+  a.download='云e宝备份_'+new Date().toISOString().slice(0,10)+'_'+Object.keys(clients).length+'客户.json';a.click();showToast('备份文件已下载 ✓');
+}
+function importBackup(input){
+  var file=input.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var backup=JSON.parse(e.target.result);if(!backup.clients){showToast('文件格式不对');return;}
+      var cnt=Object.keys(backup.clients).length;var ex=Object.keys(clients).length;
+      if(ex>0&&!confirm('当前已有'+ex+'个客户。确定合并导入？')){input.value='';return;}
+      clients=ex>0?Object.assign({},clients,backup.clients):backup.clients;
+      if(backup.cfg){if(backup.cfg.knowledgeBase)cfg.knowledgeBase=backup.cfg.knowledgeBase;if(backup.cfg.styleLog)cfg.styleLog=backup.cfg.styleLog;if(backup.cfg.styleProfile)cfg.styleProfile=backup.cfg.styleProfile;}
+      saveStorage();syncSettingsUI();renderClients();renderClientSelect();renderStyleLog();updateDataStats();
+      showToast('导入成功！恢复了'+cnt+'个客户 ✓');
+    }catch(e){showToast('导入失败：文件损坏或格式错误');}
+    input.value='';
   };
-
-  cfg.styleLog.unshift(entry); // 最新的放前面
-  if (cfg.styleLog.length > 200) cfg.styleLog = cfg.styleLog.slice(0, 200); // 最多保留200条
-
-  // 每积累5条自动触发风格分析
-  const changedCount = cfg.styleLog.filter(e => e.changed).length;
-  if (changedCount > 0 && changedCount % 5 === 0) {
-    setTimeout(() => analyzeStyle(true), 1000); // 延迟1秒，不打断用户操作
-  }
-
-  saveStorage();
-  renderStyleLog();
+  reader.readAsText(file);
+}
+function updateDataStats(){
+  var el=document.getElementById('dataStats');if(!el)return;
+  var vs=Object.values(clients);var total=vs.length;
+  el.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
+    [['总客户',total,'var(--accent)'],['A级',vs.filter(function(c){return c.level==='A';}).length,'var(--red)'],['B级',vs.filter(function(c){return c.level==='B';}).length,'var(--amber)'],['C级',vs.filter(function(c){return c.level==='C';}).length,'var(--green)'],['学习样本',(cfg.styleLog||[]).length,'#a78bfa']]
+    .map(function(s){return '<div style="background:var(--bg3);border-radius:8px;padding:8px 12px;text-align:center"><div style="font-size:18px;font-weight:700;color:'+s[2]+'">'+s[1]+'</div><div style="font-size:10px;color:var(--text3);margin-top:1px">'+s[0]+'</div></div>';}).join('')+'</div>';
 }
 
-function getDiff(original, modified) {
-  // 简单提取关键差异
-  const oWords = original.split(/[\s，。！？、]/);
-  const mWords = modified.split(/[\s，。！？、]/);
-  const removed = oWords.filter(w => w && !mWords.includes(w)).slice(0, 3);
-  const added = mWords.filter(w => w && !oWords.includes(w)).slice(0, 3);
-  let diff = '';
-  if (removed.length) diff += `删除了「${removed.join('、')}」`;
-  if (added.length) diff += (diff ? '，' : '') + `加入了「${added.join('、')}」`;
-  return diff || '调整了语气/结构';
-}
+// 工具
+function showLoading(show){document.getElementById('loadingEl').style.display=show?'flex':'none';if(show){document.getElementById('resultEmpty').style.display='none';}}
+function showToast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},3000);}
 
-async function analyzeStyle(silent = false) {
-  if (!cfg.styleLog || cfg.styleLog.length < 3) {
-    if (!silent) showToast('至少需要3条学习记录才能分析');
-    return;
-  }
-  if (!cfg.dsKey) return;
-  if (!silent) showToast('正在分析你的话术风格...');
-
-  const samples = cfg.styleLog.filter(e => e.changed).slice(0, 30);
-  const sampleText = samples.map((s, i) =>
-    `样本${i+1}（场景：${s.scene}，痛点：${s.pain}）\nAI版：${s.ai}\n我的版：${s.mine}`
-  ).join('\n\n');
-
-  try {
-    const res = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + cfg.dsKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [{
-          role: 'system',
-          content: '你是话术风格分析专家，分析销售人员的个人话术风格，输出JSON格式。'
-        }, {
-          role: 'user',
-          content: `以下是该销售人员对AI生成话术的修改记录，请分析他的个人话术风格特征：\n\n${sampleText}\n\n请输出JSON：
-{
-  "style_summary": "一句话总结他的话术风格",
-  "traits": ["特征1", "特征2", "特征3", "特征4"],
-  "avoid": ["他倾向避免的表达1", "避免的表达2"],
-  "prefer": ["他偏好的句式或词汇1", "偏好2", "偏好3"],
-  "trend": "风格变化趋势描述",
-  "advice": "给AI的优化建议，让AI下次更接近他的风格"
-}`
-        }],
-        temperature: 0.5
-      })
-    });
-    const data = await res.json();
-    let raw = data.choices?.[0]?.message?.content || '{}';
-    raw = raw.replace(/\`\`\`json|\`\`\`/g, '').trim();
-    const style = JSON.parse(raw);
-
-    cfg.styleProfile = style;
-    cfg.styleProfileTime = new Date().toISOString();
-    saveStorage();
-    renderStyleProfile();
-    if (!silent) showToast('风格分析完成 ✓');
-  } catch(e) {
-    if (!silent) showToast('分析失败：' + e.message);
-  }
-}
-
-function renderStyleProfile() {
-  const el = document.getElementById('styleProfile');
-  if (!el) return;
-  const s = cfg.styleProfile;
-  const count = (cfg.styleLog || []).length;
-  const changed = (cfg.styleLog || []).filter(e => e.changed).length;
-  document.getElementById('styleCount').textContent = `共${count}条记录，${changed}次修改`;
-
-  if (!s) {
-    el.innerHTML = '<div class="empty">还没有风格分析，复制修改后的话术自动积累</div>';
-    return;
-  }
-
-  el.innerHTML = `
-    <div style="background:linear-gradient(135deg,rgba(79,141,255,0.1),rgba(124,92,252,0.1));border:1px solid rgba(79,141,255,0.2);border-radius:10px;padding:16px;margin-bottom:12px">
-      <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:4px">${s.style_summary || ''}</div>
-      <div style="font-size:11px;color:var(--text3)">最后更新：${cfg.styleProfileTime ? new Date(cfg.styleProfileTime).toLocaleDateString() : ''}</div>
-    </div>
-
-    <div style="margin-bottom:12px">
-      <div class="result-label">风格特征</div>
-      ${(s.traits||[]).map(t => `<span class="tag tag-info" style="margin:3px 3px 3px 0;display:inline-block">${t}</span>`).join('')}
-    </div>
-
-    <div style="margin-bottom:12px">
-      <div class="result-label">你偏好的表达</div>
-      ${(s.prefer||[]).map(p => `<div style="font-size:12px;color:var(--green);margin-bottom:4px">✓ ${p}</div>`).join('')}
-    </div>
-
-    <div style="margin-bottom:12px">
-      <div class="result-label">你倾向避免的</div>
-      ${(s.avoid||[]).map(a => `<div style="font-size:12px;color:var(--red);margin-bottom:4px">✗ ${a}</div>`).join('')}
-    </div>
-
-    <div>
-      <div class="result-label">变化趋势</div>
-      <div style="font-size:12px;color:var(--text2);line-height:1.6">${s.trend || ''}</div>
-    </div>
-  `;
-
-  // 渲染高频词
-  const wordsEl = document.getElementById('styleWords');
-  if (wordsEl && s.prefer) {
-    wordsEl.innerHTML = (s.prefer || []).concat(s.avoid || []).map((w, i) => {
-      const isPrefer = i < (s.prefer||[]).length;
-      return `<span style="display:inline-block;margin:4px;padding:4px 12px;border-radius:20px;font-size:12px;
-        background:${isPrefer ? 'rgba(46,204,138,0.15)' : 'rgba(255,91,91,0.1)'};
-        color:${isPrefer ? 'var(--green)' : 'var(--text3)'};
-        border:1px solid ${isPrefer ? 'rgba(46,204,138,0.3)' : 'rgba(255,91,91,0.2)'}">${w}</span>`;
-    }).join('');
-  }
-
-  // 趋势
-  const trendEl = document.getElementById('styleTrend');
-  if (trendEl) {
-    trendEl.innerHTML = `
-      <div style="padding:12px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text2);line-height:1.7">
-        ${s.trend || ''}
-        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);color:var(--text3)">
-          <strong style="color:var(--accent)">给AI的优化建议：</strong>${s.advice || ''}
-        </div>
-      </div>`;
-  }
-}
-
-function renderStyleLog() {
-  const el = document.getElementById('styleLog');
-  if (!el) return;
-  const logs = (cfg.styleLog || []).slice(0, 50);
-  if (!logs.length) {
-    el.innerHTML = '<div class="empty">暂无记录</div>';
-    return;
-  }
-  el.innerHTML = logs.map(log => `
-    <div style="border-left:2px solid ${log.changed ? 'var(--accent)' : 'var(--border)'};padding:8px 12px;margin-bottom:8px;background:var(--bg3);border-radius:0 6px 6px 0">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-        <span style="font-size:11px;color:var(--text3)">${new Date(log.time).toLocaleString()} · ${log.scene} · ${log.level}级</span>
-        <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:${log.changed ? 'rgba(79,141,255,0.15)' : 'rgba(139,145,168,0.1)'};color:${log.changed ? 'var(--accent)' : 'var(--text3)'}">${log.changed ? '已修改' : '未修改'}</span>
-      </div>
-      ${log.changed ? `
-        <div style="font-size:11px;color:var(--text3);margin-bottom:3px">AI：${log.ai.slice(0,50)}${log.ai.length>50?'...':''}</div>
-        <div style="font-size:11px;color:var(--text)">我：${log.mine.slice(0,50)}${log.mine.length>50?'...':''}</div>
-        <div style="font-size:10px;color:var(--amber);margin-top:3px">${log.diff}</div>
-      ` : `<div style="font-size:11px;color:var(--text3)">直接使用了AI话术</div>`}
-    </div>
-  `).join('');
-}
-
-
-// ===== 收尾总结（一键分析整段对话状态）=====
-async function wrapUpClient() {
-  const name = getClientName();
-  if (!name) { showToast('请先填写客户名'); return; }
-  if (!cfg.dsKey) { showToast('请先配置 DeepSeek API Key'); return; }
-
-  // 收集该客户的对话历史
-  const history = clients[name]?.history || [];
-  if (history.length < 2) {
-    showToast('对话记录太少，先分析几条消息再收尾');
-    return;
-  }
-
-  const wrapBtn = event.target;
-  wrapBtn.disabled = true;
-  wrapBtn.textContent = '总结中…';
-
-  const historyText = history.slice(-20).map(h =>
-    `${h.role === 'user' ? '客户' : '我'}：${h.content}`
-  ).join('\n');
-
-  try {
-    const res = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + cfg.dsKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [{
-          role: 'system',
-          content: `你是销售顾问，帮助分析与客户的对话情况。产品：云e宝服装管理系统。
-输出JSON格式：
-{
-  "status": "一句话说明客户现在的状态",
-  "level": "A/B/C",
-  "key_concern": "客户最大的顾虑或关注点",
-  "next_action": "下一步最应该做什么（具体行动）",
-  "next_script": "下次跟进的开场话术（自然口语，60字内）",
-  "follow_days": 建议几天后跟进
-}`
-        }, {
-          role: 'user',
-          content: `请分析以下与客户【${name}】的对话，给出收尾总结：
-
-${historyText}`
-        }],
-        temperature: 0.5
-      })
-    });
-
-    const data = await res.json();
-    let text = data.choices?.[0]?.message?.content || '';
-    text = text.replace(/```json|```/g, '').trim();
-    const result = JSON.parse(text);
-
-    // 更新客户数据
-    const today = new Date();
-    const followDate = new Date(today);
-    followDate.setDate(today.getDate() + (result.follow_days || 3));
-
-    clients[name] = {
-      ...clients[name],
-      level: result.level || clients[name]?.level || 'C',
-      stage: result.status || '',
-      summary: result.key_concern || '',
-      nextFollow: followDate.toISOString().slice(0,10),
-      lastContact: today.toISOString().slice(0,10)
-    };
-
-    // 显示总结结果
-    const resultEl = document.getElementById('wrapUpResult');
-    resultEl.style.display = 'block';
-    resultEl.innerHTML = `
-      <div style="font-size:12px;font-weight:500;color:var(--green);margin-bottom:8px">收尾总结完成 ✓</div>
-      <div style="font-size:13px;color:var(--text);margin-bottom:6px"><b>客户状态：</b>${result.status}</div>
-      <div style="font-size:13px;color:var(--text);margin-bottom:6px"><b>核心顾虑：</b>${result.key_concern}</div>
-      <div style="font-size:13px;color:var(--text);margin-bottom:6px"><b>下一步：</b>${result.next_action}</div>
-      <div style="font-size:12px;color:var(--text2);background:var(--bg2);padding:8px 10px;border-radius:6px;margin-top:8px;margin-bottom:8px;line-height:1.6">
-        下次开场话术：${result.next_script}
-      </div>
-      <button class="btn btn-ghost btn-sm" onclick="copyNextScript('${result.next_script.replace(/'/g, "\'")}')">复制跟进话术</button>
-    `;
-
-    saveStorage();
-
-    // 自动同步飞书
-    if (cfg.fsAppId) {
-      saveToFeishu();
-    }
-
-    showToast('收尾总结完成，已更新客户台账 ✓');
-  } catch(e) {
-    showToast('总结失败：' + e.message);
-  } finally {
-    wrapBtn.disabled = false;
-    wrapBtn.textContent = '收尾总结 · 存飞书';
-  }
-}
-
-function copyNextScript(text) {
-  navigator.clipboard.writeText(text).then(() => showToast('跟进话术已复制 ✓'));
-}
-
-
-// ===== 店铺标签 =====
-function toggleTag(el, tag) {
-  el.classList.toggle('active');
-  // 更新当前客户的标签
-  const name = getClientName();
-  if (!name) return;
-  ensureClient(name);
-  if (!clients[name].shopTags) clients[name].shopTags = [];
-  if (el.classList.contains('active')) {
-    if (!clients[name].shopTags.includes(tag)) clients[name].shopTags.push(tag);
-  } else {
-    clients[name].shopTags = clients[name].shopTags.filter(t => t !== tag);
-  }
-  saveStorage();
-}
-
-function loadClientTags(name) {
-  // 重置所有标签
-  document.querySelectorAll('.shop-tag').forEach(el => el.classList.remove('active'));
-  if (!name || !clients[name] || !clients[name].shopTags) return;
-  clients[name].shopTags.forEach(tag => {
-    document.querySelectorAll('.shop-tag').forEach(el => {
-      if (el.textContent === tag) el.classList.add('active');
-    });
-  });
-}
-
-// ===== 导出 CSV =====
-function exportCSV() {
-  const rows = [['客户名','意向等级','店铺标签','核心痛点','当前阶段','最后沟通','下次跟进','对话摘要']];
-  Object.entries(clients).forEach(([name, c]) => {
-    rows.push([
-      name,
-      c.level || '',
-      (c.shopTags || []).join('/'),
-      c.pain || '',
-      c.stage || '',
-      c.lastContact || '',
-      c.nextFollow || '',
-      c.summary || ''
-    ]);
-  });
-  const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = '客户台账_' + new Date().toISOString().slice(0,10) + '.csv';
-  a.click();
-  showToast('CSV已导出，可直接导入飞书多维表格 ✓');
-}
-
-
-// ===== 对话历史显示 =====
-function renderConversationHistory(name) {
-  const card = document.getElementById('historyCard');
-  const container = document.getElementById('conversationHistory');
-  if (!card || !container) return;
-
-  const history = clients[name]?.history || [];
-  if (!history.length) {
-    card.style.display = 'none';
-    return;
-  }
-
-  card.style.display = 'block';
-  container.innerHTML = history.slice(-12).map(h => {
-    const isUser = h.role === 'user';
-    const bgColor = isUser ? 'rgba(79,141,255,0.08)' : 'rgba(46,204,138,0.08)';
-    const borderColor = isUser ? 'rgba(79,141,255,0.3)' : 'rgba(46,204,138,0.3)';
-    const label = isUser ? '客户' : '我';
-    const labelColor = isUser ? 'var(--accent)' : 'var(--green)';
-    const text = isUser ? h.content : (h.replyUsed || h.content);
-    return `<div style="padding:8px 10px;border-radius:8px;background:${bgColor};border:1px solid ${borderColor}">
-      <div style="font-size:10px;color:${labelColor};font-weight:500;margin-bottom:3px">${label}</div>
-      <div style="font-size:12px;color:var(--text);line-height:1.6">${text}</div>
-    </div>`;
-  }).join('');
-
-  // 滚动到最底部
-  container.scrollTop = container.scrollHeight;
-}
-
-function clearHistory() {
-  if (!currentClient) return;
-  if (!confirm('确定清空与' + currentClient + '的对话历史？')) return;
-  clients[currentClient].history = [];
-  saveStorage();
-  document.getElementById('historyCard').style.display = 'none';
-  document.getElementById('conversationHistory').innerHTML = '';
-  showToast('对话历史已清空');
-}
-
-// ===== 加载客户历史 =====
-function loadClientHistory() {
-  const name = document.getElementById('clientSelect').value;
-  if (!name) return;
-  document.getElementById('clientName').value = '';
-  currentClient = name;
-  loadClientTags(name);
-  renderConversationHistory(name);
-}
-
-function renderClientSelect() {
-  const sel = document.getElementById('clientSelect');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">选择已有客户</option>';
-  Object.keys(clients).sort().forEach(name => {
-    const opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = name + '（' + clients[name].level + '级）';
-    if (name === cur) opt.selected = true;
-    sel.appendChild(opt);
-  });
-}
-
-// ===== 客户台账渲染 =====
-function renderClients() {
-  const search = (document.getElementById('searchClient')?.value || '').toLowerCase();
-  const filterLevel = document.getElementById('filterLevel')?.value || '';
-  const list = document.getElementById('clientList');
-  if (!list) return;
-
-  const names = Object.keys(clients).filter(n => {
-    if (search && !n.toLowerCase().includes(search)) return false;
-    if (filterLevel && clients[n].level !== filterLevel) return false;
-    return true;
-  });
-
-  if (!names.length) {
-    list.innerHTML = '<div class="empty">暂无客户记录，在话术助手里分析消息后自动建档</div>';
-    return;
-  }
-
-  // 按意向等级排序
-  names.sort((a, b) => {
-    const order = { A: 0, B: 1, C: 2 };
-    return (order[clients[a].level] || 2) - (order[clients[b].level] || 2);
-  });
-
-  list.innerHTML = names.map(name => {
-    const c = clients[name];
-    const initial = name.slice(0,1);
-    return `<div class="client-item" onclick="openClient('${name}')">
-      <div class="client-avatar">${initial}</div>
-      <div class="client-info">
-        <div class="client-name">${name}</div>
-        <div class="client-meta">${(c.shopTags||[]).map(t=>'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(79,141,255,0.12);color:var(--accent);border:1px solid rgba(79,141,255,0.25);margin-right:3px">'+t+'</span>').join('')}</div>
-        <div class="client-meta" style="margin-top:2px">${c.stage || ''} · ${c.pain || '未知痛点'}</div>
-      </div>
-      <div class="client-right">
-        <span class="tag tag-${c.level}">${c.level}级</span>
-        <div class="client-follow">跟进：${c.nextFollow || '未设置'}</div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function openClient(name) {
-  document.getElementById('clientSelect').value = name;
-  document.getElementById('clientName').value = '';
-  currentClient = name;
-  switchTab('chat');
-}
-
-// ===== 每日跟进生成 =====
-async function genDailyFollowup() {
-  const today = new Date().toISOString().slice(0,10);
-  const toFollow = Object.entries(clients).filter(([, c]) => {
-    return c.nextFollow <= today;
-  }).sort((a, b) => {
-    const order = { A: 0, B: 1, C: 2 };
-    return (order[a[1].level] || 2) - (order[b[1].level] || 2);
-  });
-
-  if (!toFollow.length) {
-    document.getElementById('dailyList').innerHTML = '<div class="empty">今天暂无需要跟进的客户 🎉</div>';
-    switchTab('daily');
-    return;
-  }
-
-  document.getElementById('dailyList').innerHTML = '<div class="loading"><div class="spinner"></div> AI 正在生成跟进话术…</div>';
-  switchTab('daily');
-
-  const results = [];
-  for (const [name, c] of toFollow) {
-    try {
-      const prompt = `客户【${name}】信息：意向${c.level}级，痛点：${c.pain}，当前阶段：${c.stage}，摘要：${c.summary}。
-今天需要主动跟进他，请生成一条自然的跟进开场话术（60字以内，像朋友发消息，不要太正式）。
-只输出话术文字，不要任何解释。`;
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + cfg.dsKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'deepseek-chat', messages: [
-          { role: 'system', content: '你是资深销售顾问，生成自然口语化的跟进话术。' },
-          { role: 'user', content: prompt }
-        ], temperature: 0.8 })
-      });
-      const data = await res.json();
-      results.push({ name, c, script: data.choices?.[0]?.message?.content || '' });
-    } catch(e) {
-      results.push({ name, c, script: '（生成失败，请手动跟进）' });
-    }
-  }
-
-  document.getElementById('dailyList').innerHTML = results.map(({ name, c, script }) => `
-    <div class="followup-item">
-      <div class="followup-header">
-        <div>
-          <span class="followup-name">${name}</span>
-          <span class="tag tag-${c.level}" style="margin-left:8px">${c.level}级</span>
-          <span class="tag tag-info" style="margin-left:6px">${c.stage}</span>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="copyText(event,'${script.replace(/'/g,"\\'")}')">复制话术</button>
-      </div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">痛点：${c.pain} · 上次：${c.lastContact}</div>
-      <div class="followup-script">${script}</div>
-    </div>
-  `).join('');
-}
-
-// ===== 飞书同步 =====
-async function getFeishuToken() {
-  const res = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ app_id: cfg.fsAppId, app_secret: cfg.fsAppSecret })
-  });
-  const data = await res.json();
-  return data.tenant_access_token;
-}
-
-async function saveToFeishu() {
-  if (!currentClient || !currentAiData) { showToast('请先分析客户消息'); return; }
-  if (!cfg.fsAppId) { showToast('请先在设置页配置飞书信息'); return; }
-  document.getElementById('saveStatus').textContent = '同步中…';
-  try {
-    const token = await getFeishuToken();
-    const c = clients[currentClient];
-    const follow = new Date();
-    follow.setDate(follow.getDate() + (c.follow_days || 3));
-
-    const fields = {
-      '客户微信名': currentClient,
-      '意向等级': c.level,
-      '核心痛点': c.pain,
-      '当前阶段': c.stage,
-      '对话摘要': c.summary,
-      '下次跟进': follow.toISOString().slice(0,10),
-      '需要重点跟进': c.level === 'A'
-    };
-
-    await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${cfg.fsAppToken}/tables/${cfg.fsTableId}/records`, {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields })
-    });
-    document.getElementById('saveStatus').textContent = '✓ 已保存到飞书';
-    showToast('已同步到飞书台账 ✓');
-  } catch(e) {
-    document.getElementById('saveStatus').textContent = '同步失败';
-    showToast('飞书同步失败：' + e.message);
-  }
-}
-
-async function exportToFeishu() {
-  if (!cfg.fsAppId) { showToast('请先在设置页配置飞书信息'); return; }
-  showToast('正在同步所有客户到飞书…');
-  try {
-    const token = await getFeishuToken();
-    for (const [name, c] of Object.entries(clients)) {
-      const fields = {
-        '客户微信名': name,
-        '意向等级': c.level,
-        '核心痛点': c.pain || '',
-        '当前阶段': c.stage || '',
-        '对话摘要': c.summary || '',
-        '下次跟进': c.nextFollow || '',
-        '需要重点跟进': c.level === 'A'
-      };
-      await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${cfg.fsAppToken}/tables/${cfg.fsTableId}/records`, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields })
-      });
-    }
-    showToast('全部客户已同步到飞书 ✓');
-  } catch(e) {
-    showToast('同步失败：' + e.message);
-  }
-}
-
-async function pushToFeishu() {
-  showToast('正在推送今日跟进名单到飞书…');
-  await exportToFeishu();
-}
-
-// ===== 工具函数 =====
-function showLoading(show) {
-  document.getElementById('loadingIndicator').style.display = show ? 'flex' : 'none';
-  document.getElementById('resultEmpty').style.display = show ? 'none' : (document.getElementById('resultContent').style.display === 'none' ? 'block' : 'none');
-}
-
-function showToast(msg) {
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
-}
-
-// ===== 初始化 =====
 loadStorage();
 </script>
 </body>
