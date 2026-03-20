@@ -777,6 +777,127 @@ function markFollowToday(e,name){
   switchTab('chat');
 }
 
+// ===== 主动跟进弹窗 =====
+var followUpClient='';
+var followUpAiReplies=[];
+
+async function startFollowUp(name){
+  followUpClient=name;followUpAiReplies=[];
+  var modal=document.getElementById('followUpModal');
+  modal.style.display='flex';
+  document.getElementById('modalLoading').style.display='flex';
+  document.getElementById('modalContent').style.display='none';
+  document.getElementById('modalSaveHint').style.display='none';
+  var c=clients[name]||{};
+  document.getElementById('modalClientName').textContent=name;
+  document.getElementById('modalClientInfo').textContent=(c.level||'C')+'级 · '+(c.stage||'')+' · 痛点：'+(c.pain||'未知')+' · 上次：'+(c.lastContact||'未知');
+  if(!cfg.dsKey){showToast('请先配置API Key');closeFollowUpModal();return;}
+  await loadFollowUpReplies(name);
+}
+
+async function loadFollowUpReplies(name){
+  var c=clients[name]||{};
+  try{
+    var histArr=(c.history||[]).slice(-16).map(function(h){return (h.role==='user'?'客户':'我')+'：'+(h.replyUsed||h.content);});
+    var histText=histArr.join('\n');
+    var promptParts=[
+      '客户【'+name+'】',
+      '意向：'+(c.level||'C')+'级',
+      '痛点：'+(c.pain||'未知'),
+      '阶段：'+(c.stage||''),
+      '标签：'+(c.tags||[]).join('、'),
+      '上次沟通：'+(c.lastContact||'未知'),
+      ''
+    ];
+    if(histText)promptParts.push('历史对话：',''+histText,'');
+    promptParts.push(
+      '根据以上信息生成3条主动跟进的开场话术：',
+      '1.自然口语化像朋友发消息',
+      '2.结合之前聊过的内容有针对性',
+      '3.每条60字以内',
+      '4.三条角度不同（关心型/促进型/价值型）',
+      '只输出JSON：{"replies":["话术1","话术2","话术3"]}'
+    );
+    var prompt=promptParts.join('\n');
+    var sysContent='你是云e宝服装管理系统资深销售顾问。'+(cfg.knowledgeBase?'\n产品知识：'+cfg.knowledgeBase.slice(0,500):'');
+    var res=await fetch('https://api.deepseek.com/chat/completions',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},
+      body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:sysContent},{role:'user',content:prompt}],temperature:0.85})
+    });
+    if(!res.ok){var t=await res.text();throw new Error('HTTP '+res.status+': '+t.slice(0,100));}
+    var data=await res.json();
+    if(data.error)throw new Error(data.error.message||'API错误');
+    var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+    if(!txt)throw new Error('AI返回为空，请检查余额');
+    txt=txt.replace(/```json|```/g,'').trim();
+    var jsonMatch=txt.match(/\{[\s\S]*\}/);
+    if(!jsonMatch)throw new Error('格式错误：'+txt.slice(0,60));
+    followUpAiReplies=JSON.parse(jsonMatch[0]).replies||[];
+    renderModalReplies(followUpAiReplies);
+  }catch(e){
+    showToast('生成失败：'+e.message);
+    closeFollowUpModal();
+  }finally{
+    document.getElementById('modalLoading').style.display='none';
+  }
+}
+
+function renderModalReplies(replies){
+  document.getElementById('modalContent').style.display='block';
+  var container=document.getElementById('modalReplies');
+  container.innerHTML='';
+  var labels=['关心型','促进型','价值型'];
+  replies.forEach(function(reply,i){
+    var div=document.createElement('div');
+    div.className='reply-option';
+    div.innerHTML='<div class="reply-num">话术'+(i+1)+' · '+(labels[i]||'')+'</div><div class="reply-text">'+reply+'</div>';
+    div.onclick=function(){
+      document.querySelectorAll('#modalReplies .reply-option').forEach(function(el){el.classList.remove('selected');});
+      div.classList.add('selected');
+      document.getElementById('modalEditReply').value=reply;
+    };
+    container.appendChild(div);
+  });
+  if(container.firstChild){
+    container.firstChild.classList.add('selected');
+    document.getElementById('modalEditReply').value=replies[0]||'';
+  }
+}
+
+function copyFollowUpReply(){
+  var text=document.getElementById('modalEditReply').value.trim();
+  if(!text)return;
+  navigator.clipboard.writeText(text).then(function(){showToast('话术已复制，去微信粘贴发送 ✓');});
+  var name=followUpClient;
+  if(name&&clients[name]){
+    clients[name].history=clients[name].history||[];
+    clients[name].history.push({role:'assistant',content:text,replyUsed:text,isFollowUp:true});
+    clients[name].lastContact=new Date().toISOString().slice(0,10);
+    saveStorage();
+  }
+  var aiOrig=followUpAiReplies[0]||'';
+  if(aiOrig){
+    var ctx={stage:(clients[name]&&clients[name].stage)||'跟进',level:(clients[name]&&clients[name].level)||'B'};
+    learnFromEdit(aiOrig,text,ctx);
+  }
+  document.getElementById('modalSaveHint').style.display='block';
+}
+
+async function regenerateFollowUp(){
+  var name=followUpClient;if(!name)return;
+  document.getElementById('modalContent').style.display='none';
+  document.getElementById('modalLoading').style.display='flex';
+  document.getElementById('modalSaveHint').style.display='none';
+  await loadFollowUpReplies(name);
+}
+
+function closeFollowUpModal(){
+  document.getElementById('followUpModal').style.display='none';
+  followUpClient='';followUpAiReplies=[];
+}
+
+
 // 每日跟进
 async function genDailyFollowup(){
   var today=new Date().toISOString().slice(0,10);
