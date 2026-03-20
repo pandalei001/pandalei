@@ -355,7 +355,7 @@ function buildPrompt(analysisOnly){
   if(cfg.styleProfile&&cfg.styleProfile.advice)styleAddon='\n\n## 我的话术风格\n'+cfg.styleProfile.advice+'\n语气：'+(cfg.styleProfile.tone||'')+'\n避免：'+(cfg.styleProfile.avoid||[]).join('、');
   var base='你是云e宝服装管理系统的顶级销售顾问，20年经验，擅长读懂客户心理。\n\n## 产品知识库\n'+kb+styleAddon;
   if(analysisOnly){
-    return base+'\n\n## 任务\n深度分析客户对话，输出JSON（只输出JSON，不要其他内容）：\n{"intent":"客户核心意图","level":"A或B或C","pain":"具体痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标签1","标签2","标签3","标签4","标签5"],"wx_group":"A类重点跟进或B类培育中或C类待激活","replies":[]}\n\n标签维度：店铺类型(童装/女装/男装/运动装/批发档口)、经营状态(新开店/在装修/老店升级/多门店/即将开业)、来源(朋友转介绍/自主搜索)、决策特征(价格敏感/决策快/需审批/技术顾虑)、规模(小微1-2人/中型3-5人/大型6人+)\n等级：A=热意向，B=有兴趣，C=了解中\n\n注意：1)标签根据对话内容提取不能根据客户名字推断 2)对话里我方说的是销售话术客户方说的才是客户需求 3)痛点只提取客户主动说出的内容';
+    return base+'\n\n## 任务\n深度分析客户对话，输出JSON（只输出JSON，不要其他内容）：\n{"intent":"客户核心意图","level":"A或B或C","pain":"具体痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标签1","标签2","标签3","标签4","标签5"],"wx_group":"A类重点跟进或B类培育中或C类待激活","replies":[]}\n\n标签维度（只打客户对话中明确提到的）：店铺类型(客户明确说了才打：童装/女装/男装/运动装/批发档口)、经营状态(客户明确说了才打：新开店/在装修/老店升级/多门店)、来源(有证据才打：朋友转介绍/自主搜索)、决策特征(客户表现出来才打：价格敏感/决策快/需审批/技术顾虑)、规模(客户说了才打：小微1-2人/中型3-5人/大型6人+)\n等级：A=热意向，B=有兴趣，C=了解中\n\n严格规则：1)只打客户自己说出来的信息对应的标签，没有证据绝对不打 2)我方说的话是销售介绍，不是客户信息，不能从中提取标签或痛点 3)客户叫"男妹"不代表卖男装，要看客户说的内容';
   }else{
     return base+'\n\n## 任务\n分析客户消息，输出JSON（只输出JSON，不要其他内容）：\n{"intent":"意图概括","level":"A或B或C","pain":"核心痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"摘要","tags":["标签1","标签2","标签3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","replies":["话术1","话术2","话术3"]}\n\n话术要求：像真人说话；场景化不列功能；价格异议先价值再试用；"再想想"追问顾虑；准成交推进预约；每条100字内；follow_days默认2。\n等级：A=热意向，B=有兴趣，C=了解中';
   }
@@ -469,27 +469,33 @@ function cleanWechat(raw,clientName){
   var lines=raw.split('\n').map(function(l){return l.trim();}).filter(function(l){return l;});
   var result=[];var role='';
 
+  // 判断是不是"我"
   function isMe(sp){
     if(!sp)return false;
     if(sp==='我'||sp==='自己'||sp==='销售')return true;
-    if(myWxName&&(sp===myWxName||sp.indexOf(myWxName)>=0||myWxName.indexOf(sp)>=0))return true;
+    if(!myWxName)return false;
+    // 精确匹配或包含关系（处理全角半角括号差异）
+    var spN=sp.replace(/[（\(）\)]/g,'');
+    var myN=myWxName.replace(/[（\(）\)]/g,'');
+    if(sp===myWxName||spN===myN)return true;
+    if(myN.indexOf(spN)>=0||spN.indexOf(myN)>=0)return true;
     return false;
   }
 
+  // 检测消息头，返回发言人名字
   function checkHeader(line){
-    var sp='';
-    // 格式1：名字: （单独一行，冒号结尾，这是你的微信格式）
-    var m1=line.match(/^(.{1,60}):$/);
-    if(m1){sp=m1[1].trim();return sp;}
-    // 格式2：名字  HH:MM
+    // 格式1：名字: 或 名字： 冒号结尾（支持全角半角，名字可含括号）
+    var m1=line.match(/^(.{1,80})[：:]$/);
+    if(m1)return m1[1].trim();
+    // 格式2：名字  HH:MM（两个以上空格+时间）
     var m2=line.match(/^(.{1,60})\s{2,}\d{1,2}:\d{2}$/);
-    if(m2){sp=m2[1].trim();return sp;}
+    if(m2)return m2[1].trim();
     // 格式3：名字 yyyy/mm/dd HH:MM
     var m3=line.match(/^(.{1,60})\s+\d{4}[\/-]\d{1,2}[\/-]\d{1,2}\s+\d{1,2}:\d{2}$/);
-    if(m3){sp=m3[1].trim();return sp;}
+    if(m3)return m3[1].trim();
     // 格式4：「名字 HH:MM」
     var m4=line.match(/^[「『](.+?)\s+\d{1,2}:\d{2}[」』]$/);
-    if(m4){sp=m4[1].trim();return sp;}
+    if(m4)return m4[1].trim();
     return '';
   }
 
@@ -500,9 +506,8 @@ function cleanWechat(raw,clientName){
     if(sp){role=isMe(sp)?'我':'客户';return;}
     if(line&&role){result.push(role+'：'+line);}
     else if(line){
-      // 没检测到消息头，尝试 名字：内容 格式
-      var cm=line.match(/^(.{1,25})：(.+)$/);
-      if(cm)result.push((isMe(cm[1])?'我':'客户')+'：'+cm[2]);
+      var cm=line.match(/^(.{1,25})[：:](.+)$/);
+      if(cm)result.push((isMe(cm[1])?'我':'客户')+'：'+cm[2].trim());
       else result.push(line);
     }
   });
@@ -696,12 +701,49 @@ function renderClients(){
       '<div class="client-info"><div class="client-name">'+name+'</div>'+
       '<div class="client-meta">'+wxTag+tags+'</div>'+
       '<div class="client-meta" style="margin-top:2px">'+(c.stage||'')+' · '+(c.pain||'未知痛点')+'</div></div>'+
-      '<div class="client-right"><span class="tag tag-'+(c.level||'C')+'">'+(c.level||'C')+'级</span><div class="client-follow">跟进：'+(c.nextFollow||'未设置')+'</div></div></div>';
+      '<div class="client-right">'+'<span class="tag tag-'+(c.level||'C')+'">'+(c.level||'C')+'级</span>'+'<div class="client-follow">跟进：'+(c.nextFollow||'未设置')+'</div>'+'<button class="btn btn-primary btn-sm" style="margin-top:5px;font-size:11px;padding:3px 10px" onclick="markFollowToday(event,\''+name+'\')">'+'今天跟进</button>'+'</div></div>';
   }).join('');
 }
+function followNow(name){
+  // 打开话术助手并选中该客户，输入框聚焦
+  document.getElementById('clientSelect').value=name;
+  document.getElementById('clientName').value='';
+  currentClient=name;
+  updateModeHint();
+  loadClientTags(name);
+  renderHistory(name);
+  switchTab('chat');
+  // 滚动到输入框并聚焦
+  setTimeout(function(){
+    var el=document.getElementById('singleMsg');
+    if(el){el.focus();el.scrollIntoView({behavior:'smooth',block:'center'});}
+  },200);
+  showToast('已切换到客户「'+name+'」，粘贴消息开始跟进');
+}
+
 function openClient(name){
   document.getElementById('clientSelect').value=name;document.getElementById('clientName').value='';
   currentClient=name;updateModeHint();loadClientTags(name);renderHistory(name);switchTab('chat');
+}
+
+
+// 标记今天主动跟进某客户
+function markFollowToday(e,name){
+  e.stopPropagation();
+  if(!clients[name])return;
+  var today=new Date().toISOString().slice(0,10);
+  // 设置下次跟进为2天后
+  var next=new Date();next.setDate(next.getDate()+2);
+  clients[name].lastContact=today;
+  clients[name].nextFollow=next.toISOString().slice(0,10);
+  saveStorage();renderClients();
+  showToast('已标记今天跟进'+name+'，下次跟进：'+next.toISOString().slice(0,10));
+  // 跳转到话术助手并选中该客户
+  document.getElementById('clientSelect').value=name;
+  document.getElementById('clientName').value='';
+  currentClient=name;
+  updateModeHint();loadClientTags(name);renderHistory(name);
+  switchTab('chat');
 }
 
 // 每日跟进
