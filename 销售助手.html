@@ -224,7 +224,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
         <div class="setting-group">
           <div class="setting-label">DeepSeek API Key</div>
           <input type="password" id="dsKey" placeholder="sk-ant-xxxxxxxx">
-          <div class="setting-hint">console.anthropic.com → API Keys 获取，以 sk-ant- 开头</div>
+          <div class="setting-hint">填入你的中转站 API Key（如云雾API的 sk-G9C1... 这样的 Key）</div>
         </div>
         <div class="setting-group">
           <div class="setting-label">我的微信名（用于识别聊天记录里谁是我）</div>
@@ -395,26 +395,24 @@ async function callAI(userMsg,history,analysisOnly){
     else if(h.role==='assistant'&&h.replyUsed)histMsgs.push({role:'assistant',content:'我回复了：'+h.replyUsed});
   });
   histMsgs.push({role:'user',content:userMsg});
-  var res=await fetch('https://api.anthropic.com/v1/messages',{
+  var messages=[{role:'system',content:buildPrompt(!!analysisOnly)}].concat(histMsgs);
+  var res=await fetch('https://allapi.store/v1/chat/completions',{
     method:'POST',
     headers:{
-      'x-api-key':cfg.dsKey,
-      'anthropic-version':'2023-06-01',
-      'content-type':'application/json',
-      'anthropic-dangerous-direct-browser-access':'true'
+      'Authorization':'Bearer '+cfg.dsKey,
+      'Content-Type':'application/json'
     },
     body:JSON.stringify({
       model:'claude-sonnet-4-6',
-      max_tokens:1500,
-      system:buildPrompt(!!analysisOnly),
-      messages:histMsgs,
-      temperature:0.75
+      messages:messages,
+      temperature:0.75,
+      max_tokens:1500
     })
   });
   if(!res.ok){var t=await res.text();throw new Error('HTTP '+res.status+': '+t.slice(0,150));}
   var data=await res.json();
   if(data.error)throw new Error((data.error.message||JSON.stringify(data.error)));
-  var content=(data.content&&data.content[0]&&data.content[0].text)||'';
+  var content=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
   if(!content)throw new Error('AI返回为空，请检查API Key余额');
   content=content.replace(/```json|```/g,'').trim();
   var m=content.match(/\{[\s\S]*\}/);
@@ -426,26 +424,23 @@ async function callAIFree(question){
   if(!cfg.dsKey){showToast('请先在设置页填写API Key');return null;}
   var kb=cfg.knowledgeBase||'';
   var sysContent='你是云e宝服装管理系统顶级销售顾问，20年经验。'+(kb?'\n\n产品背景：\n'+kb.slice(0,800):'')+'\n\n直接回答销售问题，给出可直接使用的话术或策略，纯文本回复。';
-  var res=await fetch('https://api.anthropic.com/v1/messages',{
+  var res=await fetch('https://allapi.store/v1/chat/completions',{
     method:'POST',
     headers:{
-      'x-api-key':cfg.dsKey,
-      'anthropic-version':'2023-06-01',
-      'content-type':'application/json',
-      'anthropic-dangerous-direct-browser-access':'true'
+      'Authorization':'Bearer '+cfg.dsKey,
+      'Content-Type':'application/json'
     },
     body:JSON.stringify({
       model:'claude-sonnet-4-6',
-      max_tokens:1000,
-      system:sysContent,
-      messages:[{role:'user',content:question}],
-      temperature:0.8
+      messages:[{role:'system',content:sysContent},{role:'user',content:question}],
+      temperature:0.8,
+      max_tokens:1000
     })
   });
   if(!res.ok){var t=await res.text();throw new Error('HTTP '+res.status+': '+t.slice(0,100));}
   var data=await res.json();
   if(data.error)throw new Error((data.error.message||JSON.stringify(data.error)));
-  return(data.content&&data.content[0]&&data.content[0].text)||'';
+  return(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
 }
 
 // ===== 分析单条 =====
@@ -659,21 +654,19 @@ function loadFollowUpReplies(name){
   var prompt=parts.join('\n');
   var sysMsg='你是云e宝服装管理系统资深销售顾问，20年经验。'+(cfg.knowledgeBase?'\n产品知识：'+cfg.knowledgeBase.slice(0,500):'');
 
-  fetch('https://api.anthropic.com/v1/messages',{
+  fetch('https://allapi.store/v1/chat/completions',{
     method:'POST',
     headers:{
-      'x-api-key':cfg.dsKey,
-      'anthropic-version':'2023-06-01',
-      'content-type':'application/json',
-      'anthropic-dangerous-direct-browser-access':'true'
+      'Authorization':'Bearer '+cfg.dsKey,
+      'Content-Type':'application/json'
     },
-    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:800,system:sysMsg,messages:[{role:'user',content:prompt}],temperature:0.85})
+    body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:sysMsg},{role:'user',content:prompt}],temperature:0.85,max_tokens:800})
   }).then(function(res){
     if(!res.ok)return res.text().then(function(t){throw new Error('HTTP '+res.status+': '+t.slice(0,80));});
     return res.json();
   }).then(function(data){
     if(data.error)throw new Error((data.error.message||JSON.stringify(data.error)));
-    var txt=(data.content&&data.content[0]&&data.content[0].text)||'';
+    var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
     if(!txt)throw new Error('AI返回为空，请检查余额');
     txt=txt.replace(/```json|```/g,'').trim();
     var jsonMatch=txt.match(/\{[\s\S]*\}/);
@@ -750,9 +743,9 @@ async function analyzeStyle(silent){
   if(!silent)showToast('正在分析话术风格…');
   var samples=changed.slice(0,20).map(function(s,i){return '样本'+(i+1)+':\nAI版：'+s.ai+'\n我的版：'+s.mine;}).join('\n\n');
   try{
-    var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':cfg.dsKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:800,system:'分析销售人员话术风格，输出JSON。',messages:[{role:'user',content:'分析以下修改记录，输出JSON：{"summary":"风格总结","traits":["特征1","特征2","特征3"],"tone":"语气","avoid":["避免1","避免2"],"advice":"给AI的优化提示词"}\n\n'+samples}],temperature:0.5})});
+    var res=await fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'分析销售人员话术风格，输出JSON。'},{role:'user',content:'分析以下修改记录，输出JSON：{"summary":"风格总结","traits":["特征1","特征2","特征3"],"tone":"语气","avoid":["避免1","避免2"],"advice":"给AI的优化提示词"}\n\n'+samples}],temperature:0.5,max_tokens:800})});
     var data=await res.json();
-    var txt=(data.content&&data.content[0]&&data.content[0].text)||'{}';
+    var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'{}';
     txt=txt.replace(/```json|```/g,'').trim();var m=txt.match(/\{[\s\S]*\}/);
     if(m){cfg.styleProfile=JSON.parse(m[0]);cfg.styleProfileTime=new Date().toISOString();saveStorage();renderStyleProfileDisplay();}
     if(!silent)showToast('风格分析完成 ✓');
@@ -795,9 +788,9 @@ async function wrapUpClient(){
   var btn=event.target;btn.disabled=true;btn.textContent='总结中…';
   var histTxt=history.slice(-20).map(function(h){return(h.role==='user'?'客户':'我')+'：'+h.content;}).join('\n');
   try{
-    var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':cfg.dsKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,system:'你是销售顾问，分析对话，输出JSON：{"status":"客户现状","level":"A/B/C","key_concern":"核心顾虑","next_action":"下一步行动","next_script":"跟进话术60字内","follow_days":2}',messages:[{role:'user',content:'分析客户【'+name+'】的对话：\n\n'+histTxt}],temperature:0.5})});
+    var res=await fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是销售顾问，分析对话，输出JSON：{"status":"客户现状","level":"A/B/C","key_concern":"核心顾虑","next_action":"下一步行动","next_script":"跟进话术60字内","follow_days":2}'},{role:'user',content:'分析客户【'+name+'】的对话：\n\n'+histTxt}],temperature:0.5,max_tokens:600})});
     var data=await res.json();
-    var txt=(data.content&&data.content[0]&&data.content[0].text)||'{}';
+    var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'{}';
     txt=txt.replace(/```json|```/g,'').trim();var m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error('格式错误');
     var result=JSON.parse(m[0]);
     var today=new Date();var fd=new Date(today);fd.setDate(today.getDate()+(result.follow_days||2));
@@ -877,8 +870,8 @@ async function genDailyFollowup(){
   for(var i=0;i<toFollow.length;i++){
     var name=toFollow[i][0];var c=toFollow[i][1];
     try{
-      var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':cfg.dsKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:200,system:'你是资深销售顾问，生成自然跟进话术。',messages:[{role:'user',content:'客户【'+name+'】'+c.level+'级，痛点：'+c.pain+'，阶段：'+c.stage+'。生成一条60字内自然跟进话术，不要太正式，只输出话术。'}],temperature:0.8})});
-      var data=await res.json();results.push({name:name,c:c,script:(data.content&&data.content[0]&&data.content[0].text)||''});
+      var res=await fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是资深销售顾问，生成自然跟进话术。'},{role:'user',content:'客户【'+name+'】'+c.level+'级，痛点：'+c.pain+'，阶段：'+c.stage+'。生成一条60字内自然跟进话术，不要太正式，只输出话术。'}],temperature:0.8,max_tokens:200})});
+      var data=await res.json();results.push({name:name,c:c,script:(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||''});
     }catch(e){results.push({name:name,c:c,script:'（生成失败）'});}
   }
   document.getElementById('dailyList').innerHTML=results.map(function(r){
