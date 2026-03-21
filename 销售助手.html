@@ -645,14 +645,16 @@ function loadFollowUpReplies(name){
     ''
   ];
   if(histText){parts.push('历史对话（最近）：');parts.push(histText);parts.push('');}
-  parts.push('根据以上信息生成3条主动跟进的开场话术：');
-  parts.push('1.自然口语化像朋友发消息');
-  parts.push('2.结合之前聊过的内容有针对性');
-  parts.push('3.每条60字以内');
-  parts.push('4.三条角度分别是：关心型/促进型/价值型');
-  parts.push('只输出JSON格式：{"replies":["话术1","话术2","话术3"]}');
+  parts.push('根据以上客户信息，生成3条今天主动联系的开场话术：');
+  parts.push('');
+  parts.push('【关心型】：从客户的实际情况出发，关心她/他最近的进展，不提产品。比如客户快开业了就问开业准备怎样，客户在装修就问装修进度。要有具体细节。');
+  parts.push('【促进型】：用时间节点或者之前聊过的具体内容推进，不用催促词，而是帮客户算账或帮客户解决某个顾虑。');
+  parts.push('【价值型】：针对客户之前提到的某个具体痛点，给一个具体的解决方案或者小建议，让客户感觉你在帮她而不是卖东西给她。');
+  parts.push('');
+  parts.push('要求：每条50字以内，口语化，像真人发微信，不能有"您好"开头，不能说"把握机会""临门一脚"。');
+  parts.push('只输出JSON：{"replies":["关心型话术","促进型话术","价值型话术"]}');
   var prompt=parts.join('\n');
-  var sysMsg='你是云e宝服装管理系统资深销售顾问，20年经验。'+(cfg.knowledgeBase?'\n产品知识：'+cfg.knowledgeBase.slice(0,500):'');
+  var sysMsg='你是一个做服装管理系统的资深销售，说话风格自然真实，像朋友一样聊天，不说销售腔。'+(cfg.knowledgeBase?'\n产品知识：'+cfg.knowledgeBase.slice(0,500):'')+'\n\n话术铁律：\n1. 禁止用"临门一脚""就差一步""把握机会"这类催促词\n2. 禁止连续问两个问题\n3. 开场不能直接谈产品，先关心客户的事\n4. 要有具体细节，不能空泛，比如提到之前聊过的具体内容\n5. 语气要像发微信给朋友，不像发营销短信';
 
   fetch('https://allapi.store/v1/chat/completions',{
     method:'POST',
@@ -870,7 +872,7 @@ async function genDailyFollowup(){
   for(var i=0;i<toFollow.length;i++){
     var name=toFollow[i][0];var c=toFollow[i][1];
     try{
-      var res=await fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是资深销售顾问，生成自然跟进话术。'},{role:'user',content:'客户【'+name+'】'+c.level+'级，痛点：'+c.pain+'，阶段：'+c.stage+'。生成一条60字内自然跟进话术，不要太正式，只输出话术。'}],temperature:0.8,max_tokens:200})});
+      var res=await fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是资深销售顾问，生成自然跟进话术。'},{role:'user',content:'客户【'+name+'】情况：'+c.level+'级意向，痛点：'+c.pain+'，当前阶段：'+c.stage+'，摘要：'+c.summary+'。\n\n生成一条今天主动联系的开场话术，要求：\n- 像朋友发微信，不要销售腔\n- 从客户关心的事切入，不要直接谈产品\n- 40字以内\n- 禁止用"临门一脚""把握机会""优惠"等词\n只输出话术文字，不要解释。'}],temperature:0.8,max_tokens:200})});
       var data=await res.json();results.push({name:name,c:c,script:(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||''});
     }catch(e){results.push({name:name,c:c,script:'（生成失败）'});}
   }
