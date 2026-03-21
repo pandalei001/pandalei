@@ -151,6 +151,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
             <div class="flex mt8" style="flex-wrap:wrap;gap:8px">
               <button class="btn btn-primary" onclick="copyReply()">复制话术</button>
               <button class="btn btn-ghost btn-sm" onclick="wrapUpClient()">收尾总结</button>
+              <button class="btn btn-ghost btn-sm" onclick="quickEditFollowDate()">改跟进时间</button>
               <button class="btn btn-ghost btn-sm" onclick="exportCSV()">导出台账</button>
             </div>
             <div id="wrapUpResult" style="display:none;margin-top:10px;padding:12px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--green)"></div>
@@ -222,8 +223,8 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
         <div class="card-title"><span class="dot"></span>基础配置</div>
         <div class="setting-group">
           <div class="setting-label">DeepSeek API Key</div>
-          <input type="password" id="dsKey" placeholder="sk-xxxxxxxx">
-          <div class="setting-hint">platform.deepseek.com → API Keys，充值10元可用1-2个月</div>
+          <input type="password" id="dsKey" placeholder="sk-ant-xxxxxxxx">
+          <div class="setting-hint">console.anthropic.com → API Keys 获取，以 sk-ant- 开头</div>
         </div>
         <div class="setting-group">
           <div class="setting-label">我的微信名（用于识别聊天记录里谁是我）</div>
@@ -376,7 +377,7 @@ function buildPrompt(analysisOnly){
   var styleAddon='';
   if(cfg.styleProfile&&cfg.styleProfile.advice)styleAddon='\n\n## 我的话术风格\n'+cfg.styleProfile.advice+'\n语气：'+(cfg.styleProfile.tone||'')+'\n避免：'+(cfg.styleProfile.avoid||[]).join('、');
   var base='你是云e宝服装管理系统顶级销售顾问，20年经验，擅长读懂客户心理。\n\n## 产品知识库\n'+kb+styleAddon;
-  var note='\n\n重要：1)标签根据对话内容提取不能根据名字推断 2)我说的是销售话术客户说的才是客户需求 3)痛点只提取客户自己说出的内容';
+  var note='\n\n重要：1)标签根据对话内容提取不能根据名字推断 2)我说的是销售话术客户说的才是客户需求 3)痛点只提取客户自己说出的内容 4)如果客户提到了具体开业时间，必须在tags里加入类似"预计X月开业"的标签，同时summary里也要提及';
   if(analysisOnly){
     return base+'\n\n## 任务\n深度分析客户对话，只输出JSON：\n{"intent":"核心意图","level":"A或B或C","pain":"具体痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标签1","标签2","标签3","标签4","标签5"],"wx_group":"A类重点跟进或B类培育中或C类待激活","replies":[]}\n标签维度：店铺类型/经营状态/来源渠道/决策特征/规模\n等级：A热意向 B有兴趣 C了解中'+note;
   }else{
@@ -393,12 +394,27 @@ async function callAI(userMsg,history,analysisOnly){
     if(h.role==='user')histMsgs.push({role:'user',content:'客户说：'+h.content});
     else if(h.role==='assistant'&&h.replyUsed)histMsgs.push({role:'assistant',content:'我回复了：'+h.replyUsed});
   });
-  var messages=[{role:'system',content:buildPrompt(!!analysisOnly)}].concat(histMsgs).concat([{role:'user',content:userMsg}]);
-  var res=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:messages,temperature:0.75})});
+  histMsgs.push({role:'user',content:userMsg});
+  var res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'x-api-key':cfg.dsKey,
+      'anthropic-version':'2023-06-01',
+      'content-type':'application/json',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({
+      model:'claude-sonnet-4-6',
+      max_tokens:1500,
+      system:buildPrompt(!!analysisOnly),
+      messages:histMsgs,
+      temperature:0.75
+    })
+  });
   if(!res.ok){var t=await res.text();throw new Error('HTTP '+res.status+': '+t.slice(0,150));}
   var data=await res.json();
-  if(data.error)throw new Error(data.error.message||'API错误');
-  var content=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+  if(data.error)throw new Error((data.error.message||JSON.stringify(data.error)));
+  var content=(data.content&&data.content[0]&&data.content[0].text)||'';
   if(!content)throw new Error('AI返回为空，请检查API Key余额');
   content=content.replace(/```json|```/g,'').trim();
   var m=content.match(/\{[\s\S]*\}/);
@@ -409,11 +425,27 @@ async function callAI(userMsg,history,analysisOnly){
 async function callAIFree(question){
   if(!cfg.dsKey){showToast('请先在设置页填写API Key');return null;}
   var kb=cfg.knowledgeBase||'';
-  var res=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你是云e宝服装管理系统顶级销售顾问，20年经验。'+(kb?'\n\n产品背景：\n'+kb.slice(0,800):'')+'直接回答销售问题，给出可直接使用的话术或策略，纯文本回复。'},{role:'user',content:question}],temperature:0.8})});
+  var sysContent='你是云e宝服装管理系统顶级销售顾问，20年经验。'+(kb?'\n\n产品背景：\n'+kb.slice(0,800):'')+'\n\n直接回答销售问题，给出可直接使用的话术或策略，纯文本回复。';
+  var res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'x-api-key':cfg.dsKey,
+      'anthropic-version':'2023-06-01',
+      'content-type':'application/json',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({
+      model:'claude-sonnet-4-6',
+      max_tokens:1000,
+      system:sysContent,
+      messages:[{role:'user',content:question}],
+      temperature:0.8
+    })
+  });
   if(!res.ok){var t=await res.text();throw new Error('HTTP '+res.status+': '+t.slice(0,100));}
   var data=await res.json();
-  if(data.error)throw new Error(data.error.message||'API错误');
-  return(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+  if(data.error)throw new Error((data.error.message||JSON.stringify(data.error)));
+  return(data.content&&data.content[0]&&data.content[0].text)||'';
 }
 
 // ===== 分析单条 =====
@@ -512,7 +544,8 @@ function renderResult(data){
   showResult();
   document.getElementById('intentEl').textContent=data.intent||'';
   var autoTags=(data.tags||[]).map(function(t){return '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(124,92,252,.15);color:#a78bfa;border:1px solid rgba(124,92,252,.3)">'+t+'</span>';}).join('');
-  document.getElementById('tagsEl').innerHTML='<span class="tag tag-'+(data.level||'C')+'">'+(data.level||'C')+'级 · '+(data.wx_group||'')+'</span><span class="tag tag-info">'+(data.stage||'')+'</span><span class="tag" style="background:rgba(139,145,168,.15);color:var(--text2);border:1px solid var(--border)">'+(data.follow_days||2)+'天后跟进</span>'+autoTags;
+  var openDateTag=clients[currentClient]&&clients[currentClient].openDate?'<span class="tag" style="background:rgba(245,166,35,.15);color:var(--amber);border:1px solid rgba(245,166,35,.3)">📅 '+clients[currentClient].openDate+'</span>':'';
+  document.getElementById('tagsEl').innerHTML='<span class="tag tag-'+(data.level||'C')+'">'+(data.level||'C')+'级 · '+(data.wx_group||'')+'</span><span class="tag tag-info">'+(data.stage||'')+'</span><span class="tag" style="background:rgba(139,145,168,.15);color:var(--text2);border:1px solid var(--border)">'+(data.follow_days||2)+'天后跟进</span>'+autoTags+openDateTag;
   var container=document.getElementById('repliesEl');container.innerHTML='';
   (data.replies||[]).forEach(function(reply,i){
     if(!reply)return;
@@ -538,7 +571,15 @@ function pRow(label,value){return '<div style="display:flex;gap:8px;font-size:12
 
 function updateClientData(name,data){
   var today=new Date();var follow=new Date(today);follow.setDate(today.getDate()+(data.follow_days||2));
-  clients[name]=Object.assign({},clients[name],{level:data.level||'C',pain:data.pain||'',stage:data.stage||'咨询',follow_days:data.follow_days||2,summary:data.summary||'',tags:data.tags||clients[name].tags||[],wxGroup:data.wx_group||clients[name].wxGroup||'',lastContact:today.toISOString().slice(0,10),nextFollow:follow.toISOString().slice(0,10)});
+  // 提取开业时间标签
+  var tags=data.tags||clients[name].tags||[];
+  var openDate=clients[name].openDate||'';
+  tags.forEach(function(t){
+    var m=t.match(/(\d{1,2})月.*开业|预计(.+)开业|开业.*(\d{1,2})月/);
+    if(m&&!openDate)openDate=t;
+  });
+  if(data.summary&&(data.summary.includes('开业')||data.summary.includes('开店'))&&!openDate)openDate=data.summary;
+  clients[name]=Object.assign({},clients[name],{level:data.level||'C',pain:data.pain||'',stage:data.stage||'咨询',follow_days:data.follow_days||2,summary:data.summary||'',tags:tags,wxGroup:data.wx_group||clients[name].wxGroup||'',lastContact:today.toISOString().slice(0,10),nextFollow:follow.toISOString().slice(0,10),openDate:openDate});
 }
 function showResult(){document.getElementById('resultEmpty').style.display='none';document.getElementById('resultContent').style.display='block';}
 
@@ -556,6 +597,26 @@ function copyReply(){
   saveStorage();
 }
 function copyText(text){navigator.clipboard.writeText(text).then(function(){showToast('已复制 ✓');});}
+
+
+function quickEditFollowDate(){
+  var name=currentClient||getClientName();
+  if(!name){showToast('请先选择客户');return;}
+  editFollowDate(name);
+}
+
+function editFollowDate(name){
+  var c=clients[name];if(!c)return;
+  var cur=c.nextFollow||'';
+  var newDate=prompt('修改【'+name+'】的跟进时间\n格式：YYYY-MM-DD（如 2025-04-15）',cur);
+  if(newDate===null)return;
+  newDate=newDate.trim();
+  if(!newDate){clients[name].nextFollow='';saveStorage();renderClients();showToast('已清除跟进时间');return;}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(newDate)){showToast('格式不对，请输入如：2025-04-15');return;}
+  clients[name].nextFollow=newDate;
+  saveStorage();renderClients();
+  showToast('【'+name+'】跟进时间已更新为 '+newDate+' ✓');
+}
 
 // ===== 主动跟进弹窗 =====
 var followUpClient='';
@@ -598,16 +659,21 @@ function loadFollowUpReplies(name){
   var prompt=parts.join('\n');
   var sysMsg='你是云e宝服装管理系统资深销售顾问，20年经验。'+(cfg.knowledgeBase?'\n产品知识：'+cfg.knowledgeBase.slice(0,500):'');
 
-  fetch('https://api.deepseek.com/chat/completions',{
+  fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
-    headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},
-    body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:sysMsg},{role:'user',content:prompt}],temperature:0.85})
+    headers:{
+      'x-api-key':cfg.dsKey,
+      'anthropic-version':'2023-06-01',
+      'content-type':'application/json',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:800,system:sysMsg,messages:[{role:'user',content:prompt}],temperature:0.85})
   }).then(function(res){
     if(!res.ok)return res.text().then(function(t){throw new Error('HTTP '+res.status+': '+t.slice(0,80));});
     return res.json();
   }).then(function(data){
-    if(data.error)throw new Error(data.error.message||'API错误');
-    var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+    if(data.error)throw new Error((data.error.message||JSON.stringify(data.error)));
+    var txt=(data.content&&data.content[0]&&data.content[0].text)||'';
     if(!txt)throw new Error('AI返回为空，请检查余额');
     txt=txt.replace(/```json|```/g,'').trim();
     var jsonMatch=txt.match(/\{[\s\S]*\}/);
@@ -684,9 +750,9 @@ async function analyzeStyle(silent){
   if(!silent)showToast('正在分析话术风格…');
   var samples=changed.slice(0,20).map(function(s,i){return '样本'+(i+1)+':\nAI版：'+s.ai+'\n我的版：'+s.mine;}).join('\n\n');
   try{
-    var res=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'分析销售人员话术风格，输出JSON。'},{role:'user',content:'分析以下修改记录，输出JSON：{"summary":"风格总结","traits":["特征1","特征2","特征3"],"tone":"语气","avoid":["避免1","避免2"],"advice":"给AI的优化提示词"}\n\n'+samples}],temperature:0.5})});
+    var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':cfg.dsKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:800,system:'分析销售人员话术风格，输出JSON。',messages:[{role:'user',content:'分析以下修改记录，输出JSON：{"summary":"风格总结","traits":["特征1","特征2","特征3"],"tone":"语气","avoid":["避免1","避免2"],"advice":"给AI的优化提示词"}\n\n'+samples}],temperature:0.5})});
     var data=await res.json();
-    var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'{}';
+    var txt=(data.content&&data.content[0]&&data.content[0].text)||'{}';
     txt=txt.replace(/```json|```/g,'').trim();var m=txt.match(/\{[\s\S]*\}/);
     if(m){cfg.styleProfile=JSON.parse(m[0]);cfg.styleProfileTime=new Date().toISOString();saveStorage();renderStyleProfileDisplay();}
     if(!silent)showToast('风格分析完成 ✓');
@@ -729,9 +795,9 @@ async function wrapUpClient(){
   var btn=event.target;btn.disabled=true;btn.textContent='总结中…';
   var histTxt=history.slice(-20).map(function(h){return(h.role==='user'?'客户':'我')+'：'+h.content;}).join('\n');
   try{
-    var res=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你是销售顾问，分析对话，输出JSON：{"status":"客户现状","level":"A/B/C","key_concern":"核心顾虑","next_action":"下一步行动","next_script":"跟进话术60字内","follow_days":2}'},{role:'user',content:'分析客户【'+name+'】的对话：\n\n'+histTxt}],temperature:0.5})});
+    var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':cfg.dsKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,system:'你是销售顾问，分析对话，输出JSON：{"status":"客户现状","level":"A/B/C","key_concern":"核心顾虑","next_action":"下一步行动","next_script":"跟进话术60字内","follow_days":2}',messages:[{role:'user',content:'分析客户【'+name+'】的对话：\n\n'+histTxt}],temperature:0.5})});
     var data=await res.json();
-    var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'{}';
+    var txt=(data.content&&data.content[0]&&data.content[0].text)||'{}';
     txt=txt.replace(/```json|```/g,'').trim();var m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error('格式错误');
     var result=JSON.parse(m[0]);
     var today=new Date();var fd=new Date(today);fd.setDate(today.getDate()+(result.follow_days||2));
@@ -789,7 +855,7 @@ function renderClients(){
       '</div>'+
       '<div class="client-right">'+
         '<span class="tag tag-'+(c.level||'C')+'">'+(c.level||'C')+'级</span>'+
-        '<div class="client-follow">跟进：'+(c.nextFollow||'未设置')+'</div>'+
+        '<div class="client-follow">跟进：'+(c.nextFollow||'未设置')+' <span style="cursor:pointer;color:var(--accent);font-size:10px" onclick="event.stopPropagation();editFollowDate(\''+name+'\')">[改]</span></div>'+
         '<button class="btn btn-primary btn-sm" style="margin-top:5px;font-size:11px;padding:3px 10px" onclick="startFollowUp(\''+name+'\')">主动跟进</button>'+
       '</div>'+
     '</div>';
@@ -811,8 +877,8 @@ async function genDailyFollowup(){
   for(var i=0;i<toFollow.length;i++){
     var name=toFollow[i][0];var c=toFollow[i][1];
     try{
-      var res=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你是资深销售顾问，生成自然跟进话术。'},{role:'user',content:'客户【'+name+'】'+c.level+'级，痛点：'+c.pain+'，阶段：'+c.stage+'。生成一条60字内自然跟进话术，不要太正式，只输出话术。'}],temperature:0.8})});
-      var data=await res.json();results.push({name:name,c:c,script:(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||''});
+      var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':cfg.dsKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:200,system:'你是资深销售顾问，生成自然跟进话术。',messages:[{role:'user',content:'客户【'+name+'】'+c.level+'级，痛点：'+c.pain+'，阶段：'+c.stage+'。生成一条60字内自然跟进话术，不要太正式，只输出话术。'}],temperature:0.8})});
+      var data=await res.json();results.push({name:name,c:c,script:(data.content&&data.content[0]&&data.content[0].text)||''});
     }catch(e){results.push({name:name,c:c,script:'（生成失败）'});}
   }
   document.getElementById('dailyList').innerHTML=results.map(function(r){
