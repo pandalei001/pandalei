@@ -76,6 +76,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
     <div class="tab" onclick="switchTab('clients')">👥 客户台账</div>
     <div class="tab" onclick="switchTab('daily')">📋 每日跟进</div>
     <div class="tab" onclick="switchTab('style')">🧠 风格进化</div>
+    <div class="tab" onclick="switchTab('qa')">📚 QA知识库</div>
     <div class="tab" onclick="switchTab('settings')">⚙️ 配置备份</div>
   </div>
   <div class="topbar-right"><div class="config-badge" id="configBadge" onclick="switchTab('settings')">未配置API</div></div>
@@ -152,9 +153,17 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
               <button class="btn btn-primary" onclick="copyReply()">复制话术</button>
               <button class="btn btn-ghost btn-sm" onclick="wrapUpClient()">收尾总结</button>
               <button class="btn btn-ghost btn-sm" onclick="quickEditFollowDate()">改跟进时间</button>
+              <button class="btn btn-ghost btn-sm" onclick="saveReplyToQA()">存入QA</button>
               <button class="btn btn-ghost btn-sm" onclick="exportCSV()">导出台账</button>
             </div>
             <div id="wrapUpResult" style="display:none;margin-top:10px;padding:12px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--green)"></div>
+            <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+              <div style="font-size:11px;color:var(--text3);margin-bottom:5px">不满意这条话术？告诉AI你的想法重新生成</div>
+              <div style="display:flex;gap:8px;align-items:flex-end">
+                <textarea id="regenHint" rows="2" placeholder="如：太正式了，语气再随意一点&#10;加一句关于开业时间的内容" style="flex:1;font-size:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px;outline:none;resize:vertical"></textarea>
+                <button class="btn btn-ghost btn-sm" onclick="regenReply()">重新生成</button>
+              </div>
+            </div>
           </div>
         </div>
         <div id="loadingEl" style="display:none" class="loading"><div class="spinner"></div> AI 分析中…</div>
@@ -214,6 +223,46 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
     </div>
   </div>
 </div>
+
+<!-- QA知识库 -->
+<div class="page" id="page-qa">
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>搜索 / 新增</div>
+        <input type="text" id="qaSearch" placeholder="搜索关键词，如：价格、年费、扫码枪…" oninput="renderQA()" style="margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">共 <span id="qaCount">0</span> 条 · 自动同步到产品知识库供AI参考</div>
+        <button class="btn btn-primary btn-sm" onclick="openQAForm()">+ 新增问答</button>
+      </div>
+      <div class="card" id="qaFormCard" style="display:none">
+        <div class="card-title"><span class="dot"></span><span id="qaFormTitle">新增问答</span></div>
+        <div class="setting-group">
+          <div class="setting-label">客户问题</div>
+          <textarea id="qaQ" rows="2" placeholder="如：你们有年费吗？"></textarea>
+        </div>
+        <div class="setting-group">
+          <div class="setting-label">最佳回复话术</div>
+          <textarea id="qaA" rows="4" placeholder="填入你测试过效果最好的回复…"></textarea>
+        </div>
+        <div class="setting-group">
+          <div class="setting-label">分类标签（可选）</div>
+          <input type="text" id="qaTag" placeholder="如：价格异议、功能介绍、竞品对比">
+        </div>
+        <div class="flex mt8">
+          <button class="btn btn-primary btn-sm" onclick="saveQAItem()">保存</button>
+          <button class="btn btn-ghost btn-sm" onclick="closeQAForm()">取消</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>问答列表</div>
+        <div id="qaList"><div class="empty">暂无问答</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <!-- 配置备份 -->
 <div class="page" id="page-settings">
@@ -292,7 +341,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
 
 <script>
 // ===== 数据 =====
-var cfg={dsKey:'',myWxName:'',fsAppId:'',fsAppSecret:'',fsAppToken:'',fsTableId:'',knowledgeBase:'',styleLog:[],styleProfile:null};
+var cfg={dsKey:'',myWxName:'',fsAppId:'',fsAppSecret:'',fsAppToken:'',fsTableId:'',knowledgeBase:'',styleLog:[],styleProfile:null,qaList:[]};
 var clients={};
 var currentClient='';
 var currentAiData=null;
@@ -300,7 +349,7 @@ var currentAiData=null;
 function loadStorage(){
   try{var s=localStorage.getItem('ynb_cfg');if(s)cfg=Object.assign({},cfg,JSON.parse(s));}catch(e){}
   try{var s2=localStorage.getItem('ynb_clients');if(s2)clients=JSON.parse(s2);}catch(e){}
-  syncSettingsUI();updateConfigBadge();renderClients();renderClientSelect();renderStyleLog();updateDataStats();
+  syncSettingsUI();updateConfigBadge();renderClients();renderClientSelect();renderStyleLog();updateDataStats();if(document.getElementById("qaList"))renderQA();
 }
 function saveStorage(){localStorage.setItem('ynb_cfg',JSON.stringify(cfg));localStorage.setItem('ynb_clients',JSON.stringify(clients));}
 function saveSettings(){
@@ -326,11 +375,12 @@ function updateConfigBadge(){
 
 // ===== 标签页 =====
 function switchTab(tab){
-  var tabs=['chat','clients','daily','style','settings'];
+  var tabs=['chat','clients','daily','style','qa','settings'];
   document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',tabs[i]===tab);});
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.getElementById('page-'+tab).classList.add('active');
   if(tab==='clients')renderClients();
+  if(tab==='qa'){renderQA();}
   if(tab==='settings')updateDataStats();
 }
 
@@ -726,6 +776,196 @@ function regenerateFollowUp(){
 function closeFollowUpModal(){
   document.getElementById('followUpModal').style.display='none';
   followUpClient='';followUpAiReplies=[];
+}
+
+
+// ===== QA 知识库 =====
+var qaEditingId = null;
+
+function renderQA() {
+  var searchEl = document.getElementById('qaSearch');
+  var search = searchEl ? searchEl.value.toLowerCase() : '';
+  var list = document.getElementById('qaList');
+  var countEl = document.getElementById('qaCount');
+  if (!list) return;
+  var items = cfg.qaList || [];
+  if (countEl) countEl.textContent = items.length;
+  var filtered = search ? items.filter(function(q) {
+    return q.q.toLowerCase().includes(search) || q.a.toLowerCase().includes(search) || (q.tag||'').toLowerCase().includes(search);
+  }) : items;
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty">' + (search ? '没有找到相关问答' : '暂无问答，点左侧按钮添加') + '</div>';
+    return;
+  }
+  var html = '';
+  filtered.forEach(function(item) {
+    var tagHtml = item.tag ? '<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:rgba(79,141,255,.12);color:var(--accent);border:1px solid rgba(79,141,255,.25);margin-left:6px">' + item.tag + '</span>' : '';
+    html += '<div style="background:var(--bg3);border-radius:8px;padding:12px 14px;margin-bottom:8px;border:1px solid var(--border)">';
+    html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px">';
+    html += '<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.5;flex:1">Q：' + item.q + tagHtml + '</div>';
+    html += '<div style="display:flex;gap:5px;margin-left:8px;flex-shrink:0">';
+    html += '<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px" data-id="' + item.id + '" onclick="editQAItem(this.getAttribute(\'data-id\'))">编辑</button>';
+    html += '<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px;color:var(--red)" data-id="' + item.id + '" onclick="deleteQAItem(this.getAttribute(\'data-id\'))">删除</button>';
+    html += '</div></div>';
+    html += '<div style="font-size:12px;color:var(--text2);line-height:1.7;background:var(--bg2);border-radius:6px;padding:8px 10px;border-left:3px solid var(--accent)">A：' + item.a + '</div>';
+    html += '</div>';
+  });
+  list.innerHTML = html;
+}
+
+function openQAForm(prefillQ, prefillA) {
+  qaEditingId = null;
+  document.getElementById('qaFormTitle').textContent = '新增问答';
+  document.getElementById('qaQ').value = prefillQ || '';
+  document.getElementById('qaA').value = prefillA || '';
+  document.getElementById('qaTag').value = '';
+  document.getElementById('qaFormCard').style.display = 'block';
+  setTimeout(function() { document.getElementById('qaQ').focus(); }, 100);
+}
+
+function closeQAForm() {
+  document.getElementById('qaFormCard').style.display = 'none';
+  qaEditingId = null;
+}
+
+function saveQAItem() {
+  var q = document.getElementById('qaQ').value.trim();
+  var a = document.getElementById('qaA').value.trim();
+  var tag = document.getElementById('qaTag').value.trim();
+  if (!q || !a) { showToast('问题和回复都不能为空'); return; }
+  if (!cfg.qaList) cfg.qaList = [];
+  if (qaEditingId) {
+    var idx = -1;
+    cfg.qaList.forEach(function(item, i) { if (item.id === qaEditingId) idx = i; });
+    if (idx !== -1) cfg.qaList[idx] = { id: qaEditingId, q: q, a: a, tag: tag, updatedAt: new Date().toISOString() };
+    showToast('已更新问答 ✓');
+  } else {
+    cfg.qaList.push({ id: 'qa_' + Date.now(), q: q, a: a, tag: tag, createdAt: new Date().toISOString() });
+    showToast('已添加问答 ✓');
+  }
+  syncQAToKnowledge();
+  saveStorage();
+  closeQAForm();
+  renderQA();
+}
+
+function editQAItem(id) {
+  var item = null;
+  (cfg.qaList || []).forEach(function(i) { if (i.id === id) item = i; });
+  if (!item) return;
+  qaEditingId = id;
+  document.getElementById('qaFormTitle').textContent = '编辑问答';
+  document.getElementById('qaQ').value = item.q;
+  document.getElementById('qaA').value = item.a;
+  document.getElementById('qaTag').value = item.tag || '';
+  document.getElementById('qaFormCard').style.display = 'block';
+  document.getElementById('qaQ').focus();
+}
+
+function deleteQAItem(id) {
+  if (!confirm('确定删除这条问答？')) return;
+  cfg.qaList = (cfg.qaList || []).filter(function(i) { return i.id !== id; });
+  syncQAToKnowledge();
+  saveStorage();
+  renderQA();
+  showToast('已删除');
+}
+
+function syncQAToKnowledge() {
+  var base = cfg.knowledgeBase || '';
+  var marker = '\n\n===== 常见问答（自动同步）=====';
+  var cut = base.indexOf(marker);
+  if (cut !== -1) base = base.slice(0, cut);
+  if (cfg.qaList && cfg.qaList.length > 0) {
+    var block = marker + '\n' + cfg.qaList.map(function(item) {
+      return 'Q：' + item.q + '\nA：' + item.a;
+    }).join('\n\n');
+    cfg.knowledgeBase = base + block;
+  } else {
+    cfg.knowledgeBase = base;
+  }
+  var el = document.getElementById('knowledgeBase');
+  if (el) el.value = cfg.knowledgeBase;
+}
+
+function saveReplyToQA() {
+  var reply = document.getElementById('editReply').value.trim();
+  if (!reply) { showToast('请先选择一条话术'); return; }
+  var q = '';
+  if (currentClient && clients[currentClient] && clients[currentClient].history) {
+    var h = clients[currentClient].history;
+    for (var i = h.length - 1; i >= 0; i--) {
+      if (h[i].role === 'user') { q = h[i].content; break; }
+    }
+  }
+  switchTab('qa');
+  openQAForm(q, reply);
+}
+
+async function regenReply() {
+  var hint = document.getElementById('regenHint').value.trim();
+  if (!hint) { showToast('请输入你的想法，如：语气再随意一点'); return; }
+  var original = document.getElementById('editReply').value.trim();
+  if (!original) { showToast('请先选择一条话术'); return; }
+  if (!cfg.dsKey) { showToast('请先配置API Key'); return; }
+
+  var name = currentClient || getClientName();
+  var btn = event.target;
+  btn.disabled = true; btn.textContent = '生成中…';
+
+  try {
+    var clientInfo = '';
+    if (name && clients[name]) {
+      clientInfo = '客户情况：' + clients[name].level + '级，' + clients[name].stage + '，痛点：' + clients[name].pain + '\n\n';
+    }
+    var userMsg = '原话术：\n' + original + '\n\n修改要求：' + hint + '\n\n' + clientInfo + '根据修改要求重新生成3条话术。自然口语化，像朋友发微信，不要销售腔。\n只输出JSON：{"replies":["话术1","话术2","话术3"]}';
+    var res = await fetch('https://allapi.store/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + cfg.dsKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        messages: [
+          { role: 'system', content: '你是资深销售顾问，擅长写自然口语化的销售话术，说话像朋友不像销售员。' },
+          { role: 'user', content: userMsg }
+        ],
+        temperature: 0.85,
+        max_tokens: 600
+      })
+    });
+    if (!res.ok) { var t = await res.text(); throw new Error('HTTP ' + res.status + ': ' + t.slice(0,80)); }
+    var data = await res.json();
+    var txt = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+    txt = txt.replace(/```json|```/g, '').trim();
+    var m = txt.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('格式错误：' + txt.slice(0, 60));
+    var replies = JSON.parse(m[0]).replies || [];
+
+    var container = document.getElementById('repliesEl');
+    container.innerHTML = '';
+    replies.forEach(function(reply, i) {
+      if (!reply) return;
+      var div = document.createElement('div');
+      div.className = 'reply-option';
+      div.innerHTML = '<div class="reply-num">优化版 ' + (i+1) + '</div><div class="reply-text">' + reply + '</div><button class="copy-inline" data-t="' + reply.replace(/"/g, '&quot;') + '" onclick="event.stopPropagation();copyText(this.getAttribute(\'data-t\'))">复制</button>';
+      div.onclick = function(e) {
+        if (e.target.classList.contains('copy-inline')) return;
+        document.querySelectorAll('#repliesEl .reply-option').forEach(function(el) { el.classList.remove('selected'); });
+        div.classList.add('selected');
+        document.getElementById('editReply').value = reply;
+      };
+      container.appendChild(div);
+    });
+    if (container.firstChild) {
+      container.firstChild.classList.add('selected');
+      document.getElementById('editReply').value = replies[0] || '';
+    }
+    document.getElementById('regenHint').value = '';
+    showToast('重新生成完成 ✓');
+  } catch(e) {
+    showToast('生成失败：' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '重新生成';
+  }
 }
 
 // ===== 风格学习 =====
