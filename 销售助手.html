@@ -40,6 +40,12 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
 .tag-A{background:rgba(255,91,91,.2);color:var(--red);border:1px solid rgba(255,91,91,.4);}
 .tag-B{background:rgba(245,166,35,.2);color:var(--amber);border:1px solid rgba(245,166,35,.4);}
 .tag-C{background:rgba(46,204,138,.2);color:var(--green);border:1px solid rgba(46,204,138,.3);}
+.tag-Aplus{background:rgba(220,20,20,.25);color:#ff2020;border:1px solid rgba(220,20,20,.5);font-weight:700;}
+.tag-done{background:rgba(79,141,255,.2);color:var(--accent);border:1px solid rgba(79,141,255,.4);}
+.tag-referral{background:rgba(124,92,252,.2);color:#a78bfa;border:1px solid rgba(124,92,252,.4);}
+.tag-Aplus{background:rgba(220,20,20,.25);color:#ff2020;border:1px solid rgba(220,20,20,.5);font-weight:700;}
+.tag-done{background:rgba(79,141,255,.2);color:var(--accent);border:1px solid rgba(79,141,255,.4);}
+.tag-referral{background:rgba(124,92,252,.2);color:#a78bfa;border:1px solid rgba(124,92,252,.4);}
 .tag-info{background:rgba(79,141,255,.15);color:var(--accent);border:1px solid rgba(79,141,255,.3);}
 .reply-option{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:6px;cursor:pointer;transition:all .2s;position:relative;}
 .reply-option:hover{border-color:var(--accent);}.reply-option.selected{border-color:var(--accent);background:rgba(79,141,255,.06);}
@@ -151,8 +157,16 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
     </div>
     <div>
       <div class="card">
+        <div class="card-title"><span class="dot"></span>🤝 售后跟进</div>
+        <div id="dashAfterSale"><div class="empty">暂无</div></div>
+      </div>
+      <div class="card">
         <div class="card-title"><span class="dot"></span>📅 近期开业客户</div>
         <div id="dashOpenList"><div class="empty">暂无近期开业客户</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>🤝 售后跟进</div>
+        <div id="dashAfterSale"><div class="empty">暂无</div></div>
       </div>
       <div class="card">
         <div class="card-title"><span class="dot"></span>🕐 最近跟进记录</div>
@@ -380,6 +394,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
 </div><!-- end mainApp -->
 
 <script>
+
 // ===== Supabase 配置 =====
 var SUPA_URL = 'https://lnvpbyirhepsimocmywt.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxudnBieWlyaGVwc2ltb2NteXd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTcwODgsImV4cCI6MjA4OTY3MzA4OH0.sAXcHXTpRyrGNX4UL_cS_AvhGEb5WRHOtm0cg3_NKXg';
@@ -566,94 +581,152 @@ function switchTab(tab){
 }
 
 // ===== 今日看板 =====
-async function renderDashboard(){
-  var today=new Date().toISOString().slice(0,10);
-  var allClients=Object.entries(clients);
-  var total=allClients.length;
-  var aCount=allClients.filter(function(e){return e[1].level==='A';}).length;
-  var toFollow=allClients.filter(function(e){return e[1].nextFollow&&e[1].nextFollow<=today;});
-  toFollow.sort(function(a,b){return({A:0,B:1,C:2}[a[1].level]||2)-({A:0,B:1,C:2}[b[1].level]||2);});
-  document.getElementById('dashTotal').textContent=total;
-  document.getElementById('dashA').textContent=aCount;
-  document.getElementById('dashToday').textContent=toFollow.length;
-
-  // 今日跟进列表
-  var fl=document.getElementById('dashFollowList');
-  if(toFollow.length===0){fl.innerHTML='<div class="empty">今天没有需要跟进的客户 🎉</div>';}
-  else{
-    fl.innerHTML=toFollow.slice(0,8).map(function(e){
-      var name=e[0];var c=e[1];
-      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--bg3);border-radius:7px;margin-bottom:5px;border:1px solid var(--border)">' +
-        '<div><span style="font-weight:500;font-size:13px">'+name+'</span> <span class="tag tag-'+c.level+'">'+c.level+'级</span>' +
-        '<div style="font-size:11px;color:var(--text2);margin-top:1px">'+c.pain+'</div></div>' +
-        '<button class="btn btn-primary btn-sm" onclick="startFollowUp(\''+name+'\')">跟进</button>' +
-      '</div>';
-    }).join('');
-  }
-
-  // 超期未跟进（3天以上）
-  var threeDaysAgo=new Date();threeDaysAgo.setDate(threeDaysAgo.getDate()-3);
-  var overdue=allClients.filter(function(e){
-    var c=e[1];if(!c.lastContact)return false;
-    return new Date(c.lastContact)<threeDaysAgo&&c.level!=='成交';
+var todayFollowedSet={};
+var AFTER_SALE_STEPS=[
+  {day:0,label:'\u6210\u4ea4\u5f53\u5929',action:'\u544a\u77e5\u5feb\u9012\u5355\u53f7\u548c\u9884\u8ba1\u5230\u8d27\u65f6\u95f4'},
+  {day:3,label:'\u6210\u4ea4\u7b2c3\u5929',action:'\u95ee\u5feb\u9012\u5230\u4e86\u6ca1\uff0c\u5e2e\u5fd9\u786e\u8ba4\u6536\u8d27'},
+  {day:7,label:'\u6210\u4ea4\u7b2c7\u5929',action:'\u95ee\u7cfb\u7edf\u7528\u8d77\u6765\u600e\u4e48\u6837\uff0c\u6709\u6ca1\u6709\u4e0d\u61c2\u7684'},
+  {day:14,label:'\u6210\u4ea4\u7b2c14\u5929',action:'\u5165\u5e93\u6253\u6807\u987a\u4e0d\u987a\uff0c\u4f1a\u5458\u529f\u80fd\u7528\u4e0a\u4e86\u5417'},
+  {day:30,label:'\u6210\u4ea4\u7b2c30\u5929',action:'\u95ee\u751f\u610f\u600e\u4e48\u6837\uff0c\u6709\u6ca1\u6709\u670b\u53cb\u4e5f\u5728\u5f00\u5e97'},
+  {day:90,label:'\u6210\u4ea4\u7b2c90\u5929',action:'\u63d0\u524d\u63d0\u9192\u7eed\u8d39\uff0c\u5f3a\u8c03\u6570\u636e\u4e0d\u4e22'},
+  {day:330,label:'\u8ddd\u5230\u671f30\u5929',action:'\u91cd\u70b9\u8ddf\u8fdb\u7eed\u8d39\u50ac\u5355'}
+];
+function levelConfig(level){
+  var map={
+    'Aplus':{label:'A+ \u51c6\u6210\u4ea4',cls:'tag-Aplus',score:50},
+    'A':{label:'A \u5f3a\u5174\u8da3',cls:'tag-A',score:30},
+    'B':{label:'B \u6709\u5174\u8da3',cls:'tag-B',score:15},
+    'C':{label:'C \u4e86\u89e3\u4e2d',cls:'tag-C',score:0},
+    'done':{label:'\u2713 \u6210\u4ea4',cls:'tag-done',score:-10},
+    'referral':{label:'\u267b \u8f6c\u4ecb\u7ecd',cls:'tag-referral',score:-10}
+  };
+  return map[level]||{label:level||'C',cls:'tag-C',score:0};
+}
+function calcUrgencyScore(name,c){
+  var today=new Date();var score=levelConfig(c.level).score;
+  if(c.openDate){var os=extractDateFromText(c.openDate);if(os){var d=Math.floor((new Date(os)-today)/86400000);if(d<=0)score+=10;else if(d<=3)score+=60;else if(d<=7)score+=50;else if(d<=14)score+=30;else if(d<=30)score+=10;}}
+  if(c.lastContact){var ds=Math.floor((today-new Date(c.lastContact))/86400000);if(ds>=7)score+=45;else if(ds>=3)score+=35;else if(ds>=1)score+=20;}
+  if(c.level==='Aplus')score+=20;
+  return score;
+}
+function renderAfterSaleDash(done,todayStr){
+  var el=document.getElementById('dashAfterSale');if(!el)return;
+  if(!done.length){el.innerHTML='<div class="empty">\u6682\u65e0\u6210\u4ea4\u5ba2\u6237</div>';return;}
+  var today=new Date(todayStr);var need=[];
+  done.forEach(function(e){
+    var name=e[0];var c=e[1];if(!c.doneDate)return;
+    var ds=Math.floor((today-new Date(c.doneDate))/86400000);
+    for(var i=AFTER_SALE_STEPS.length-1;i>=0;i--){
+      if(ds>=AFTER_SALE_STEPS[i].day){
+        if(i>(c.afterSaleStep||0)||(i===(c.afterSaleStep||0)&&ds===AFTER_SALE_STEPS[i].day))
+          need.push({name:name,c:c,step:AFTER_SALE_STEPS[i],si:i});
+        break;
+      }
+    }
   });
+  if(!need.length){el.innerHTML='<div class="empty">\u6682\u65e0\u9700\u552e\u540e\u8ddf\u8fdb\u7684\u5ba2\u6237 \u2713</div>';return;}
+  el.innerHTML=need.map(function(item){
+    var n=item.name;var s=item.step;
+    return '<div style="padding:8px 11px;background:rgba(79,141,255,.05);border-radius:8px;margin-bottom:5px;border:1px solid rgba(79,141,255,.25)">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between">'+
+        '<div><span style="font-weight:500;font-size:13px">'+n+'</span>'+
+        '<span class="tag tag-done" style="margin-left:5px">'+s.label+'</span>'+
+        '<div style="font-size:11px;color:var(--text2);margin-top:2px">'+s.action+'</div></div>'+
+        '<button class="btn btn-ghost btn-sm" data-n="'+n+'" data-act="'+s.action+'" onclick="startAfterSaleFollowUp(this.getAttribute(\'data-n\'),this.getAttribute(\'data-act\'))">'+'\u751f\u6210\u8bdd\u672f</button>'+
+      '</div></div>';
+  }).join('');
+}
+async function renderDashboard(){
+  var today=new Date();var todayStr=today.toISOString().slice(0,10);
+  var all=Object.entries(clients);
+  var active=all.filter(function(e){return e[1].level!=='done'&&e[1].level!=='referral';});
+  var done=all.filter(function(e){return e[1].level==='done';});
+  var toFollow=active.filter(function(e){return e[1].nextFollow&&e[1].nextFollow<=todayStr;});
+  toFollow.sort(function(a,b){return calcUrgencyScore(b[0],b[1])-calcUrgencyScore(a[0],a[1]);});
+  document.getElementById('dashTotal').textContent=all.length;
+  document.getElementById('dashA').textContent=active.filter(function(e){return e[1].level==='Aplus';}).length;
+  document.getElementById('dashToday').textContent=toFollow.length;
+  var fl=document.getElementById('dashFollowList');
+  fl.innerHTML='';
+  if(!toFollow.length){
+    fl.innerHTML='<div class="empty">今天没有需要跟进的客户 🎉</div>';
+  } else {
+    toFollow.forEach(function(e){
+      var name=e[0];var c=e[1];var lc=levelConfig(c.level);
+      var score=calcUrgencyScore(name,c);
+      var isFollowed=!!todayFollowedSet[name];
+      var urgentHtml=score>=70?'<span style="color:var(--red);font-size:10px;margin-left:4px">⚡紧急</span>':'';
+      var openHtml='';
+      if(c.openDate){var os=extractDateFromText(c.openDate);if(os){var dt=Math.floor((new Date(os)-today)/86400000);if(dt>=0&&dt<=14)openHtml='<span style="font-size:10px;color:var(--amber);margin-left:4px">📅距开业'+dt+'天</span>';}}
+      var countHtml=c.followCount>0?'<span style="font-size:10px;color:var(--text3);margin-left:4px">第'+(c.followCount+1)+'次</span>':'';
+      var fuzzyHtml=c.fuzzyTime?'<div style="font-size:10px;color:var(--text3);margin-top:1px">客户说：'+c.fuzzyTime+'</div>':'';
+      var div=document.createElement('div');
+      div.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 11px;background:var(--bg3);border-radius:8px;margin-bottom:5px;border:1px solid '+(score>=70?'rgba(255,91,91,.35)':'var(--border)');
+      var btnHtml=isFollowed
+        ?'<button class="btn btn-ghost btn-sm" style="color:var(--green);border-color:rgba(46,204,138,.4)" disabled>已跟进 ✓</button>'
+        :'<button class="sfu-dash btn btn-primary btn-sm">跟进</button>';
+      div.innerHTML='<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span style="font-weight:500;font-size:13px">'+name+'</span><span class="tag '+lc.cls+'">'+lc.label+'</span>'+urgentHtml+openHtml+countHtml+'</div><div style="font-size:11px;color:var(--text2);margin-top:2px">'+c.pain+'</div>'+fuzzyHtml+'</div><div style="margin-left:8px;flex-shrink:0">'+btnHtml+'</div>';
+      if(!isFollowed)(function(n){var b=div.querySelector('.sfu-dash');if(b)b.onclick=function(){startFollowUp(n);};})(name);
+      fl.appendChild(div);
+    });
+  }
+  renderAfterSaleDash(done,todayStr);
+  var threeDaysAgo=new Date();threeDaysAgo.setDate(threeDaysAgo.getDate()-3);
+  var overdue=active.filter(function(e){return e[1].lastContact&&new Date(e[1].lastContact)<threeDaysAgo;});
+  overdue.sort(function(a,b){return new Date(a[1].lastContact)-new Date(b[1].lastContact);});
   var ol=document.getElementById('dashOverdueList');
-  if(overdue.length===0){ol.innerHTML='<div class="empty">没有超期客户 ✓</div>';}
+  ol.innerHTML='';
+  if(!overdue.length){ol.innerHTML='<div class="empty">没有沉默客户 ✓</div>';}
   else{
-    ol.innerHTML=overdue.slice(0,5).map(function(e){
-      var name=e[0];var c=e[1];
+    overdue.slice(0,5).forEach(function(e){
+      var name=e[0];var c=e[1];var lc=levelConfig(c.level);
       var days=Math.floor((new Date()-new Date(c.lastContact))/86400000);
-      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:rgba(255,91,91,.05);border-radius:7px;margin-bottom:5px;border:1px solid rgba(255,91,91,.2)">' +
-        '<div><span style="font-weight:500;font-size:13px">'+name+'</span> <span style="font-size:11px;color:var(--red);margin-left:4px">'+days+'天未联系</span>' +
-        '<div style="font-size:11px;color:var(--text2);margin-top:1px">'+c.stage+'</div></div>' +
-        '<button class="btn btn-ghost btn-sm" onclick="startFollowUp(\''+name+'\')">跟进</button>' +
-      '</div>';
-    }).join('');
+      var div=document.createElement('div');
+      div.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:rgba(255,91,91,.05);border-radius:7px;margin-bottom:5px;border:1px solid rgba(255,91,91,.2)';
+      div.innerHTML='<div><span style="font-weight:500;font-size:13px">'+name+'</span><span class="tag '+lc.cls+'" style="margin-left:5px">'+lc.label+'</span><span style="font-size:11px;color:var(--red);margin-left:5px">'+days+'天未联系</span><div style="font-size:11px;color:var(--text2);margin-top:1px">'+c.stage+'</div></div><button class="sfu-od btn btn-ghost btn-sm">跟进</button>';
+      (function(n){var b=div.querySelector('.sfu-od');if(b)b.onclick=function(){startFollowUp(n);};})(name);
+      ol.appendChild(div);
+    });
   }
-
-  // 近期开业客户
-  var openList=allClients.filter(function(e){return e[1].openDate&&e[1].openDate.trim();});
+  var openList=active.filter(function(e){return e[1].openDate&&e[1].openDate.trim();});
+  openList.sort(function(a,b){return(extractDateFromText(a[1].openDate)||'9999').localeCompare(extractDateFromText(b[1].openDate)||'9999');});
   var openEl=document.getElementById('dashOpenList');
-  if(openList.length===0){openEl.innerHTML='<div class="empty">暂无</div>';}
+  openEl.innerHTML='';
+  if(!openList.length){openEl.innerHTML='<div class="empty">暂无近期开业客户</div>';}
   else{
-    openEl.innerHTML=openList.map(function(e){
-      return '<div style="padding:7px 10px;background:rgba(245,166,35,.05);border-radius:7px;margin-bottom:5px;border:1px solid rgba(245,166,35,.2)">' +
-        '<span style="font-weight:500">'+e[0]+'</span>' +
-        '<span style="font-size:11px;color:var(--amber);margin-left:8px">📅 '+e[1].openDate+'</span>' +
-        '<div style="font-size:11px;color:var(--text2);margin-top:1px">'+e[1].stage+' · '+e[1].pain+'</div>' +
-      '</div>';
-    }).join('');
+    openList.forEach(function(e){
+      var name=e[0];var c=e[1];
+      var os=extractDateFromText(c.openDate)||'';
+      var dt=os?Math.floor((new Date(os)-today)/86400000):-1;
+      var div=document.createElement('div');
+      div.style.cssText='padding:7px 10px;border-radius:7px;margin-bottom:5px;border:1px solid '+(dt>=0&&dt<=7?'rgba(255,91,91,.4)':'rgba(245,166,35,.2)')+';background:'+(dt>=0&&dt<=7?'rgba(255,91,91,.05)':'rgba(245,166,35,.05)');
+      div.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-weight:500">'+name+'</span><span style="font-size:11px;color:var(--amber)">📅 '+c.openDate+(dt>=0?' ('+dt+'天后)':'')+'</span></div><div style="font-size:11px;color:var(--text2);margin-top:1px">'+c.stage+' · '+c.pain+'</div>';
+      openEl.appendChild(div);
+    });
   }
-
-  // 最近跟进记录
   try{
     var rows=await dbSelect('follow_timeline','user_id=eq.'+encodeURIComponent(currentUserId)+'&select=*&order=created_at.desc&limit=6');
     var tl=document.getElementById('dashTimeline');
-    if(!rows||rows.length===0){tl.innerHTML='<div class="empty">暂无记录</div>';}
+    tl.innerHTML='';
+    if(!rows||!rows.length){tl.innerHTML='<div class="empty">暂无记录</div>';}
     else{
-      tl.innerHTML=rows.map(function(r){
+      var typeMap={analysis:'分析',reply:'发话术',follow_up:'主动跟进',batch_import:'导入历史',auto_sync:'自动同步'};
+      rows.forEach(function(r){
         var d=new Date(r.created_at);
-        var timeStr=d.getMonth()+1+'月'+d.getDate()+'日 '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
-        var dotColor=r.action_type==='follow_up'?'green':r.action_type==='analysis'?'':'amber';
-        return '<div class="timeline-item">' +
-          '<div class="tl-dot '+dotColor+'"></div>' +
-          '<div class="tl-content">' +
-            '<div class="tl-time">'+timeStr+' · '+r.client_name+' · '+r.action_type+'</div>' +
-            '<div class="tl-text">'+(r.my_reply||r.content||'').slice(0,60)+'</div>' +
-          '</div></div>';
-      }).join('');
+        var ts=(d.getMonth()+1)+'月'+d.getDate()+'日 '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+        var item=document.createElement('div');item.className='timeline-item';
+        item.innerHTML='<div class="tl-dot '+(r.action_type==='follow_up'?'green':r.action_type==='reply'?'':'amber')+'"></div><div class="tl-content"><div class="tl-time">'+ts+' · '+r.client_name+' · '+(typeMap[r.action_type]||r.action_type)+'</div><div class="tl-text">'+(r.my_reply||r.content||'').slice(0,60)+'</div></div>';
+        tl.appendChild(item);
+      });
     }
-  }catch(e){console.error(e);}
-
-  // 提醒横幅
+  }catch(ex){console.error(ex);}
   var alerts=[];
-  if(aCount>0&&toFollow.filter(function(e){return e[1].level==='A';}).length>0){
-    alerts.push('<div style="background:rgba(255,91,91,.1);border:1px solid rgba(255,91,91,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--red)">🔴 今天有 '+toFollow.filter(function(e){return e[1].level==='A';}).length+' 个A级客户需要跟进，优先处理！</div>');
-  }
+  var aplusToday=toFollow.filter(function(e){return e[1].level==='Aplus';});
+  if(aplusToday.length)alerts.push('<div style="background:rgba(220,20,20,.1);border:1px solid rgba(220,20,20,.4);border-radius:8px;padding:10px 14px;font-size:12px;color:#ff2020;margin-bottom:6px">⚡ 今天有 '+aplusToday.length+' 个A+准成交客户！48小时不跟进基本凉了，立刻处理！</div>');
+  var u7=toFollow.filter(function(e){var s=extractDateFromText(e[1].openDate||'');return s&&Math.floor((new Date(s)-today)/86400000)<=7;});
+  if(u7.length)alerts.push('<div style="background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--amber)">📅 有 '+u7.length+' 个客户7天内开业，今天必须跟进！</div>');
   document.getElementById('dashAlerts').innerHTML=alerts.join('');
 }
-
-// ===== 客户名管理 =====
 function getClientName(){return document.getElementById('clientName').value.trim()||document.getElementById('clientSelect').value||'';}
 function onSelectChange(){
   var name=document.getElementById('clientSelect').value;
@@ -694,11 +767,11 @@ function buildPrompt(analysisOnly){
   var styleAddon='';
   if(cfg.styleProfile&&cfg.styleProfile.advice)styleAddon='\n\n## 我的话术风格\n'+cfg.styleProfile.advice+'\n语气：'+(cfg.styleProfile.tone||'')+'\n避免：'+(cfg.styleProfile.avoid||[]).join('、');
   var base='你是云e宝服装管理系统顶级销售顾问，20年经验，擅长读懂客户心理。\n\n## 产品知识库\n'+kb+styleAddon;
-  var note='\n\n重要：1)标签根据对话内容提取不能根据名字推断 2)我说的是销售话术客户说的才是客户需求 3)痛点只提取客户自己说出的内容 4)如果客户提到了具体开业时间，必须在tags里加入类似\"预计X月开业\"的标签';
+  var note='\n\n重要规则：\n1)标签根据对话内容提取，不能根据名字推断\n2)我说的是销售话术，客户说的才是客户需求\n3)痛点只提取客户自己说出的内容\n4)开业时间必须在tags里记录如"预计3月25日开业"\n\n子类型判断（写入sub_type字段）：\nAplus=准成交：问快递时效/付款方式/能否走平台/能否升级/说晚点联系/问合同发票\nA=强兴趣：问优惠/活动/说考虑一下/问试用演示\nB=有兴趣：咨询功能细节但没问价格\nC=了解中：刚接触/闲聊\ndone=已成交：出现付款/转账/下单/打款/收到了\n\n模糊时间节点（写入fuzzy_time字段，没有则空字符串）：\n如果客户说了"晚点""明天""装修好了""年后""下个月""等我考虑""最近忙"等，原话写入fuzzy_time';
   if(analysisOnly){
-    return base+'\n\n## 任务\n深度分析客户对话，只输出JSON：\n{"intent":"核心意图","level":"A或B或C","pain":"具体痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标签1","标签2","标签3","标签4","标签5"],"wx_group":"A类重点跟进或B类培育中或C类待激活","replies":[]}\n等级：A热意向 B有兴趣 C了解中'+note;
+    return base+'\n\n## 任务\n深度分析客户对话，只输出JSON：\n{"intent":"核心意图","level":"Aplus或A或B或C或done","sub_type":"准成交/强兴趣/有兴趣/了解中/已成交","pain":"具体痛点","stage":"初识/咨询/异议/准成交","follow_days":1,"summary":"一句话画像","tags":["标签1","标签2","标签3","标签4","标签5"],"wx_group":"A类重点跟进或B类培育中或C类待激活","fuzzy_time":"模糊时间原话没有则空","replies":[]}\n等级：A热意向 B有兴趣 C了解中'+note;
   }else{
-    return base+'\n\n## 任务\n分析客户消息，只输出JSON：\n{"intent":"意图概括","level":"A或B或C","pain":"核心痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"摘要","tags":["标签1","标签2","标签3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","replies":["话术1","话术2","话术3"]}\n话术要求：像真人说话；场景化描述；价格异议先价值再试用；准成交推进预约；每条100字内。\n等级：A热意向 B有兴趣 C了解中'+note;
+    return base+'\n\n## 任务\n分析客户消息，只输出JSON：\n{"intent":"意图概括","level":"Aplus或A或B或C或done","sub_type":"准成交/强兴趣/有兴趣/了解中/已成交","pain":"核心痛点","stage":"初识/咨询/异议/准成交","follow_days":1,"summary":"摘要","tags":["标签1","标签2","标签3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","fuzzy_time":"客户说的模糊时间原话没有则空","replies":["话术1","话术2","话术3"]}\n话术要求：像真人说话；场景化描述；价格异议先价值再试用；准成交推进预约；每条100字内。\n等级：A热意向 B有兴趣 C了解中'+note;
   }
 }
 
@@ -859,12 +932,86 @@ function renderBatchResult(name,data){
 function pRow(label,value){return '<div style="display:flex;gap:8px;font-size:12px;margin-bottom:5px"><span style="color:var(--text3);min-width:54px;flex-shrink:0">'+label+'</span><span style="color:var(--text)">'+value+'</span></div>';}
 
 function updateClientData(name,data){
-  var today=new Date();var follow=new Date(today);follow.setDate(today.getDate()+(data.follow_days||2));
+  var todayD=new Date();var todayStr=todayD.toISOString().slice(0,10);
   var tags=data.tags||clients[name].tags||[];
   var openDate=clients[name].openDate||'';
-  tags.forEach(function(t){var m=t.match(/\d{1,2}月.*开业|预计.+开业/);if(m&&!openDate)openDate=t;});
-  clients[name]=Object.assign({},clients[name],{level:data.level||'C',pain:data.pain||'',stage:data.stage||'咨询',follow_days:data.follow_days||2,summary:data.summary||'',tags:tags,wxGroup:data.wx_group||clients[name].wxGroup||'',openDate:openDate,lastContact:today.toISOString().slice(0,10),nextFollow:follow.toISOString().slice(0,10)});
+  tags.forEach(function(t){if((t.includes('开业')||t.includes('开店'))&&!openDate)openDate=t;});
+  var fuzzyTime=data.fuzzy_time||'';
+  var fuzzyFollow=fuzzyTime?parseFuzzyTime(fuzzyTime,todayD):'';
+  var lastD=clients[name].lastContact?new Date(clients[name].lastContact):todayD;
+  var nextFollow=calcNextFollow(data.level||'C',data.follow_days||2,lastD,openDate,todayD,fuzzyFollow);
+  clients[name]=Object.assign({},clients[name],{
+    level:data.level||'C',
+    subType:data.sub_type||clients[name].subType||'',
+    pain:data.pain||'',
+    stage:data.stage||'咨询',
+    follow_days:data.follow_days||2,
+    summary:data.summary||'',
+    tags:tags,
+    wxGroup:data.wx_group||clients[name].wxGroup||'',
+    openDate:openDate,
+    fuzzyTime:fuzzyTime,
+    lastContact:todayStr,
+    nextFollow:nextFollow,
+    followCount:clients[name].followCount||0
+  });
+  if(data.level==='done'&&!clients[name].doneDate){
+    clients[name].doneDate=todayStr;
+    clients[name].afterSaleStep=0;
+  }
 }
+function parseFuzzyTime(fuzzy,base){
+  var d=new Date(base);
+  if(/\u665a\u70b9|\u4e00\u4f1a|\u7b49\u4e0b/.test(fuzzy))return addDays(d,1);
+  if(/\u660e\u5929/.test(fuzzy))return addDays(d,1);
+  if(/\u540e\u5929/.test(fuzzy))return addDays(d,2);
+  if(/\u8003\u8651|\u60f3\u60f3/.test(fuzzy))return addDays(d,3);
+  if(/\u6700\u8fd1\u5fd9|\u6bd4\u8f83\u5fd9/.test(fuzzy))return addDays(d,5);
+  if(/\u88c5\u4fee|\u8fc7\u6bb5\u65f6\u95f4/.test(fuzzy))return addDays(d,14);
+  if(/\u4e0b\u4e2a\u6708/.test(fuzzy)){var r=new Date(d);r.setMonth(r.getMonth()+1);r.setDate(1);return r.toISOString().slice(0,10);}
+  if(/\u5e74\u540e|\u8fc7\u5e74/.test(fuzzy)){var y=d.getFullYear()+(d.getMonth()>1?1:0);return new Date(y,1,10).toISOString().slice(0,10);}
+  if(/\u4e00\u5468|7\u5929/.test(fuzzy))return addDays(d,7);
+  if(/\u534a\u4e2a\u6708|\u4e24\u5468/.test(fuzzy))return addDays(d,14);
+  return '';
+}
+function addDays(d,n){var r=new Date(d);r.setDate(r.getDate()+n);return r.toISOString().slice(0,10);}
+function extractDateFromText(text){
+  if(!text)return'';
+  var today=new Date();var yr=today.getFullYear();
+  var m=text.match(/(\d{1,2})\u6708(\d{1,2})[\u65e5\u53f7]/);
+  if(m){try{var d=new Date(yr,parseInt(m[1])-1,parseInt(m[2]));if(d<today)d.setFullYear(yr+1);return d.toISOString().slice(0,10);}catch(e){}}
+  var m2=text.match(/(\d{1,2})[\u65e5\u53f7]/);
+  if(m2){try{var d2=new Date(yr,today.getMonth(),parseInt(m2[1]));if(d2<today)d2.setMonth(d2.getMonth()+1);return d2.toISOString().slice(0,10);}catch(e){}}
+  return'';
+}
+function calcNextFollow(level,followDays,lastContact,openDate,today,fuzzyFollow){
+  var todayStr=today.toISOString().slice(0,10);
+  if(fuzzyFollow&&fuzzyFollow>todayStr)return fuzzyFollow;
+  if(openDate){
+    var os=extractDateFromText(openDate);
+    if(os){
+      var daysToOpen=Math.floor((new Date(os)-today)/86400000);
+      if(daysToOpen<=0)return todayStr;
+      if(daysToOpen<=7)return todayStr;
+      if(daysToOpen<=10)return addDays(today,1);
+      if(daysToOpen<=14)return addDays(today,2);
+      var ms=new Date(os);ms.setDate(ms.getDate()-14);
+      var mss=ms.toISOString().slice(0,10);
+      return mss>todayStr?mss:todayStr;
+    }
+  }
+  if(level==='Aplus'){
+    var id=new Date(lastContact);id.setDate(id.getDate()+1);
+    var ids=id.toISOString().slice(0,10);return ids<=todayStr?todayStr:ids;
+  }
+  var fd=followDays||2;
+  if(level==='A')fd=Math.min(fd,2);
+  if(level==='B')fd=Math.min(fd,3);
+  if(level==='C')fd=Math.min(fd,5);
+  var id2=new Date(lastContact);id2.setDate(id2.getDate()+fd);
+  var id2s=id2.toISOString().slice(0,10);return id2s<=todayStr?todayStr:id2s;
+}
+
 function showResult(){document.getElementById('resultEmpty').style.display='none';document.getElementById('resultContent').style.display='block';}
 
 // ===== 复制话术 =====
@@ -938,7 +1085,14 @@ function loadFollowUpReplies(name){
   if(context)parts.push('今日策略：'+context,'');
   if(histText){parts.push('历史对话（最近）：');parts.push(histText);parts.push('');}
   parts.push('根据以上信息生成3条主动跟进的开场话术：','1.自然口语化像朋友发消息','2.结合之前聊过的内容有针对性','3.每条50字以内','4.三条角度分别是：关心型/促进型/价值型','禁止用"临门一脚""把握机会"等催促词','只输出JSON：{"replies":["关心型话术","促进型话术","价值型话术"]}');
-  var sysMsg='你是做服装管理系统的资深销售，说话自然真实，像朋友聊天，不说销售腔。'+(cfg.knowledgeBase?'\n产品知识：'+cfg.knowledgeBase.slice(0,500):'');
+  var fc=(clients[name]&&clients[name].followCount)||0;
+  var strategy=fc===0?'第1次跟进：纯关心客户的事，不提产品':fc===1?'第2次跟进：延伸上次具体问题':fc===2?'第3次跟进：给新信息如案例或竞品对比':fc===3?'第4次跟进：结合开业节点制造紧迫感':'第'+(fc+1)+'次跟进：直接问顾虑在哪里';
+  var fc=(clients[name]&&clients[name].followCount)||0;
+  var strategy=fc===0?'第1次主动跟进：纯关心客户的事，不提产品，从客户最在意的事切入':fc===1?'第2次跟进：延伸上次聊过的具体问题或顾虑':fc===2?'第3次跟进：给新信息，如其他服装老板的使用案例或竞品对比':fc===3?'第4次跟进：结合开业节点制造适度紧迫感，不要太生硬':'第'+(fc+1)+'次跟进：直接关心问顾虑在哪里，换角度突破';
+  var sysMsg='你是做服装管理系统的资深销售，说话自然真实，像朋友聊天，不说销售腔。'
+    +'\n\n本次话术策略：'+strategy
+    +'\n\n铁律：不说催促词，不连续两个问题，语气像朋友发微信'+(cfg.knowledgeBase?'\\n产品知识：'+cfg.knowledgeBase.slice(0,500):'')
+    +'\\n\\n本次策略：'+strategy+'\\n\\n铁律：不说销售腔，不催促，不连续两个问题'
   fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:sysMsg},{role:'user',content:parts.join('\n')}],temperature:0.85,max_tokens:600})})
   .then(function(res){if(!res.ok)return res.text().then(function(t){throw new Error('HTTP '+res.status+': '+t.slice(0,60));});return res.json();})
   .then(function(data){
@@ -970,6 +1124,8 @@ function copyFollowUpReply(){
     clients[name].history=clients[name].history||[];
     clients[name].history.push({role:'assistant',content:text,replyUsed:text,isFollowUp:true});
     clients[name].lastContact=new Date().toISOString().slice(0,10);
+    clients[name].followCount=(clients[name].followCount||0)+1;
+    todayFollowedSet[name]=true;
     saveClientToCloud(name);
     addTimeline(name,'follow_up','主动跟进',followUpAiReplies[0]||'',text);
     renderDashboard();
@@ -986,6 +1142,35 @@ function regenFollowUp(){
 }
 function closeFollowUpModal(){document.getElementById('followUpModal').style.display='none';followUpClient='';followUpAiReplies=[];}
 
+
+function startAfterSaleFollowUp(name,action){
+  if(!cfg.dsKey){showToast('\u8bf7\u5148\u914d\u7f6eAPI Key');return;}
+  var c=clients[name]||{};
+  var ds=c.doneDate?Math.floor((new Date()-new Date(c.doneDate))/86400000):0;
+  var kb=cfg.knowledgeBase||'';
+  var sys='\u4f60\u662f\u4e91e\u5b9d\u552e\u540e\u670d\u52a1\u4eba\u5458\uff0c\u8bf4\u8bdd\u81ea\u7136\u50cf\u670b\u53cb\u3002'+(kb?'\n\u4ea7\u54c1\uff1a'+kb.slice(0,300):'');
+  var usr='\u5ba2\u6237\u3010'+name+'\u3011\u5df2\u6210\u4ea4'+ds+'\u5929\u3002\u672c\u6b21\u552e\u540e\u52a8\u4f5c\uff1a'+action+'\u3002\n\u751f\u6210\u4e00\u6761\u81ea\u7136\u8ddf\u8fdb\u8bdd\u672f\uff0840\u5b57\u5185\uff0c\u50cf\u670b\u53cb\u53d1\u5fae\u4fe1\uff09\u3002\n\u53ea\u8f93\u51fa\u8bdd\u672f\u6587\u5b57\u3002';
+  showToast('\u751f\u6210\u552e\u540e\u8bdd\u672f\u4e2d\u2026');
+  fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.8,max_tokens:150})})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var sc=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+    var modal=document.getElementById('followUpModal');modal.style.display='flex';
+    document.getElementById('modalLoading').style.display='none';
+    document.getElementById('modalContent').style.display='block';
+    document.getElementById('modalClientName').textContent=name+' \xb7 \u552e\u540e\u8ddf\u8fdb';
+    document.getElementById('modalClientInfo').textContent=action;
+    document.getElementById('modalSaveHint').style.display='none';
+    var ct=document.getElementById('modalReplies');ct.innerHTML='';
+    var div=document.createElement('div');div.className='reply-option selected';
+    div.innerHTML='<div class="reply-num">\u552e\u540e\u8bdd\u672f</div><div class="reply-text">'+sc+'</div>';
+    div.onclick=function(){document.getElementById('modalEditReply').value=sc;};
+    ct.appendChild(div);
+    document.getElementById('modalEditReply').value=sc;
+    followUpClient=name;followUpAiReplies=[sc];
+    if(clients[name]){var si=AFTER_SALE_STEPS.findIndex(function(s){return s.action===action;});if(si>=0)clients[name].afterSaleStep=si;saveClientToCloud(name);}
+  }).catch(function(e){showToast('\u751f\u6210\u5931\u8d25\uff1a'+e.message);});
+}
 // ===== 对话历史 =====
 function renderHistory(name){
   var card=document.getElementById('historyCard');var el=document.getElementById('historyEl');if(!card||!el)return;
@@ -1035,28 +1220,38 @@ function renderClients(){
   var list=document.getElementById('clientList');if(!list)return;
   var names=Object.keys(clients).filter(function(n){return(!search||n.toLowerCase().includes(search))&&(!fl||clients[n].level===fl);});
   if(!names.length){list.innerHTML='<div class="empty">暂无客户记录</div>';return;}
-  names.sort(function(a,b){return({A:0,B:1,C:2}[clients[a].level]||2)-({A:0,B:1,C:2}[clients[b].level]||2);});
-  list.innerHTML=names.map(function(name){
-    var c=clients[name];
-    var tags=(c.tags||[]).slice(0,3).map(function(t){return '<span style="font-size:10px;padding:1px 5px;border-radius:10px;background:rgba(124,92,252,.12);color:#a78bfa;border:1px solid rgba(124,92,252,.25);margin-right:2px">'+t+'</span>';}).join('');
-    var wxTag=c.wxGroup?'<span style="font-size:10px;padding:1px 5px;border-radius:10px;background:rgba(46,204,138,.12);color:var(--green);border:1px solid rgba(46,204,138,.25);margin-right:3px">'+c.wxGroup+'</span>':'';
-    var openTag=c.openDate?'<span style="font-size:10px;color:var(--amber);margin-left:4px">📅'+c.openDate+'</span>':'';
-    return '<div class="client-item">'+
-      '<div class="client-avatar" onclick="openClient(\''+name+'\')">'+name.slice(0,1)+'</div>'+
-      '<div class="client-info" onclick="openClient(\''+name+'\')">'+
-        '<div class="client-name">'+name+openTag+'</div>'+
-        '<div class="client-meta">'+wxTag+tags+'</div>'+
-        '<div class="client-meta" style="margin-top:1px">'+(c.stage||'')+' · '+(c.pain||'未知痛点')+'</div>'+
+  names.sort(function(a,b){return calcUrgencyScore(b,clients[b])-calcUrgencyScore(a,clients[a]);});
+  list.innerHTML='';
+  names.forEach(function(name){
+    var c=clients[name];var lc=levelConfig(c.level||'C');
+    var el=document.createElement('div');el.className='client-item';
+    var aiTagsHtml=(c.tags||[]).slice(0,3).map(function(t){
+      var s=document.createElement('span');s.className='tag tag-info';s.style.fontSize='10px';s.textContent=t;return s.outerHTML;
+    }).join(' ');
+    var wxHtml=c.wxGroup?'<span class="tag" style="font-size:10px;background:rgba(46,204,138,.12);color:var(--green);border:1px solid rgba(46,204,138,.25)">'+c.wxGroup+'</span> ':'';
+    var openHtml=c.openDate?'<span style="font-size:10px;color:var(--amber);margin-left:4px">📅'+c.openDate+'</span>':'';
+    var fcHtml=c.followCount>0?'<span style="font-size:10px;color:var(--text3);margin-left:3px">跟进'+c.followCount+'次</span>':'';
+    var fuzzyHtml=c.fuzzyTime?' · <span style="font-size:10px;color:var(--text3)">'+c.fuzzyTime+'</span>':'';
+    el.innerHTML='<div class="client-avatar">'+name.slice(0,1)+'</div>'+
+      '<div class="client-info">'+
+        '<div class="client-name">'+name+openHtml+'</div>'+
+        '<div class="client-meta">'+wxHtml+aiTagsHtml+'</div>'+
+        '<div class="client-meta" style="margin-top:1px">'+(c.stage||'')+' · '+(c.pain||'未知痛点')+fuzzyHtml+'</div>'+
       '</div>'+
       '<div class="client-right">'+
-        '<span class="tag tag-'+(c.level||'C')+'">'+(c.level||'C')+'级</span>'+
-        '<div class="client-follow">跟进：'+(c.nextFollow||'未设置')+' <span style="cursor:pointer;color:var(--accent);font-size:10px" data-n="'+name+'" onclick="editFollowDate(this.getAttribute(\'data-n\'))">[改]</span></div>'+
-        '<button class="btn btn-primary btn-sm" style="margin-top:4px;font-size:11px;padding:3px 9px" data-n="'+name+'" onclick="startFollowUp(this.getAttribute(\'data-n\'))">主动跟进</button>'+
-      '</div>'+
-    '</div>';
-  }).join('');
+        '<span class="tag '+lc.cls+'">'+lc.label+'</span>'+fcHtml+
+        '<div class="client-follow">跟进：'+(c.nextFollow||'未设置')+' <span class="rc-efd" style="cursor:pointer;color:var(--accent);font-size:10px">[改]</span></div>'+
+        '<button class="rc-sfu btn btn-primary btn-sm" style="margin-top:4px;font-size:11px;padding:3px 9px">主动跟进</button>'+
+      '</div>';
+    (function(n){
+      el.querySelector('.client-avatar').onclick=function(){openClient(n);};
+      el.querySelector('.client-info').onclick=function(){openClient(n);};
+      el.querySelector('.rc-efd').onclick=function(ev){ev.stopPropagation();editFollowDate(n);};
+      el.querySelector('.rc-sfu').onclick=function(ev){ev.stopPropagation();startFollowUp(n);};
+    })(name);
+    list.appendChild(el);
+  });
 }
-
 function openClient(name){
   document.getElementById('clientSelect').value=name;document.getElementById('clientName').value='';
   currentClient=name;updateModeHint();loadClientTags(name);renderHistory(name);loadClientTimeline(name);switchTab('chat');
@@ -1275,6 +1470,9 @@ function updateDataStats(){
 // ===== 工具 =====
 function showLoading(show){document.getElementById('loadingEl').style.display=show?'flex':'none';if(show)document.getElementById('resultEmpty').style.display='none';}
 function showToast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},3000);}
+
+loadStorage();
+
 </script>
 </body>
 </html>
