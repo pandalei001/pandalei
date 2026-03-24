@@ -366,34 +366,60 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
 
 <!-- 主动跟进弹窗 -->
 <div class="modal-overlay" id="followUpModal" onclick="if(event.target===this)closeFollowUpModal()">
-  <div class="modal-box">
-    <div class="flex flex-between" style="margin-bottom:14px">
-      <div><div style="font-size:15px;font-weight:500" id="modalClientName"></div><div style="font-size:12px;color:var(--text2);margin-top:2px" id="modalClientInfo"></div></div>
+  <div class="modal-box" style="max-width:620px">
+    <div class="flex flex-between" style="margin-bottom:12px">
+      <div>
+        <div style="font-size:15px;font-weight:500" id="modalClientName"></div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px" id="modalClientInfo"></div>
+      </div>
       <button class="btn btn-ghost btn-sm" onclick="closeFollowUpModal()">关闭</button>
     </div>
-    <div style="margin-bottom:10px">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:5px">今日备注（可选，告诉AI你今天的策略）</div>
-      <input type="text" id="followUpContext" placeholder="如：今天准备亮底牌，可以送一箱小票纸">
+    <div id="modalClientPanel" style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:10px;border:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-weight:500">客户档案</div>
+      <div id="modalClientDetail" style="font-size:12px;color:var(--text);line-height:1.9"></div>
     </div>
-    <div id="modalLoading" class="loading" style="display:none"><div class="spinner"></div> AI生成跟进话术…</div>
-    <div id="modalContent" style="display:none">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">选择话术（点击选中，可下方修改）</div>
-      <div id="modalReplies"></div>
-      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">修改后复制发送</div>
-        <textarea id="modalEditReply" rows="3" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:8px;outline:none;resize:vertical"></textarea>
-        <div class="flex mt8" style="gap:6px">
-          <button class="btn btn-primary" onclick="copyFollowUpReply()">复制话术</button>
-          <button class="btn btn-ghost btn-sm" onclick="regenFollowUp()">重新生成</button>
-        </div>
-        <div id="modalSaveHint" style="font-size:11px;color:var(--green);margin-top:5px;display:none">已记录到跟进时间轴 ✓</div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:500">最近对话记录
+        <select id="modalHistCount" onchange="refreshModalHistory()" style="margin-left:6px;padding:1px 5px;font-size:11px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:4px">
+          <option value="10">10条</option>
+          <option value="20" selected>20条</option>
+          <option value="30">30条</option>
+          <option value="50">全部</option>
+        </select>
       </div>
+      <div id="modalHistoryEl" style="max-height:220px;overflow-y:auto;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px;line-height:1.8;color:var(--text2);white-space:pre-wrap;word-break:break-all"></div>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">今日背景（可选，复制给Gemini时会带上）</div>
+      <input type="text" id="followUpContext" placeholder="如：今天准备亮底牌，可以送一箱小票纸" style="font-size:12px">
+    </div>
+    <div class="flex" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="copyForGemini()">📋 复制给Gemini</button>
+      <button class="btn btn-ghost btn-sm" onclick="markFollowDone()">✅ 标记已跟进</button>
+      <button class="btn btn-ghost btn-sm" onclick="editFollowDate(followUpClient);closeFollowUpModal()">📅 改跟进时间</button>
+    </div>
+    <div id="modalSaveHint" style="font-size:11px;color:var(--green);margin-top:8px;display:none"></div>
+    <div id="modalLoading" style="display:none"></div>
+    <div id="modalContent" style="display:none">
+      <div id="modalReplies"></div>
+      <textarea id="modalEditReply" style="display:none"></textarea>
     </div>
   </div>
 </div>
 </div><!-- end mainApp -->
 
 <script>
+
+// ===== API 配置 =====
+// 切换平台只改下面三行：AI_API_URL / AI_API_KEY(配置页填) / AI_MODEL
+//
+// allapi.store 中转（当前）：AI_MODEL = 'claude-sonnet-4-6'
+// DeepSeek 官方：  AI_API_URL='https://api.deepseek.com/chat/completions'  AI_MODEL='deepseek-chat'
+// Gemini 中转：    AI_MODEL = 'gemini-2.5-pro'  或  'gemini-2.0-flash'
+// GPT 中转：       AI_MODEL = 'gpt-4.1-mini'   或  'gpt-5'
+//
+var AI_API_URL = 'https://allapi.store/v1/chat/completions';
+var AI_MODEL   = 'claude-sonnet-4-6';
 
 // ===== Supabase 配置 =====
 var SUPA_URL = 'https://lnvpbyirhepsimocmywt.supabase.co';
@@ -785,7 +811,7 @@ async function callAI(userMsg,history,analysisOnly){
     else if(h.role==='assistant'&&h.replyUsed)histMsgs.push({role:'assistant',content:'我回复了：'+h.replyUsed});
   });
   histMsgs.push({role:'user',content:userMsg});
-  var res=await fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:histMsgs,temperature:0.75,max_tokens:1500})});
+  var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL,messages:histMsgs,temperature:0.75,max_tokens:1500})});
   if(!res.ok){var t=await res.text();throw new Error('HTTP '+res.status+': '+t.slice(0,100));}
   var data=await res.json();
   if(data.error)throw new Error(data.error.message||'API错误');
@@ -800,7 +826,7 @@ async function callAI(userMsg,history,analysisOnly){
 async function callAIFree(question){
   if(!cfg.dsKey){showToast('请先填写API Key');return null;}
   var kb=cfg.knowledgeBase||'';
-  var res=await fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是云e宝服装管理系统顶级销售顾问，20年经验。'+(kb?'\n产品背景：\n'+kb.slice(0,600):'')+'直接回答销售问题，给出可直接使用的话术，纯文本回复。'},{role:'user',content:question}],temperature:0.8,max_tokens:1000})});
+  var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是云e宝服装管理系统顶级销售顾问，20年经验。'+(kb?'\n产品背景：\n'+kb.slice(0,600):'')+'直接回答销售问题，给出可直接使用的话术，纯文本回复。'},{role:'user',content:question}],temperature:0.8,max_tokens:1000})});
   if(!res.ok){var t=await res.text();throw new Error('HTTP '+res.status);}
   var data=await res.json();
   return(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
@@ -1024,8 +1050,16 @@ function copyReply(){
     if(h.length>0&&h[h.length-1].role==='user')h[h.length-1].replyUsed=text;
     h.push({role:'assistant',content:text,replyUsed:text});
     clients[name].history=h;renderHistory(name);
+    var rToday=new Date().toISOString().slice(0,10);
+    clients[name].lastContact=rToday;
+    var rGaps={'Aplus':1,'A':2,'B':3,'C':5,'done':7};
+    var rGap=rGaps[clients[name].level]||clients[name].follow_days||2;
+    var rNd=new Date();rNd.setDate(rNd.getDate()+rGap);
+    clients[name].nextFollow=rNd.toISOString().slice(0,10);
+    todayFollowedSet[name]=true;
     addTimeline(name,'reply','',currentAiData&&currentAiData.replies&&currentAiData.replies[0]||'',text);
     saveClientToCloud(name);
+    renderDashboard();
   }
   if(currentAiData&&(currentAiData.replies||[]).length>0)learnFromEdit(currentAiData.replies[0],text,currentAiData);
 }
@@ -1042,7 +1076,7 @@ async function regenReply(){
   var btn=event.target;btn.disabled=true;btn.textContent='生成中…';
   try{
     var clientInfo=name&&clients[name]?'客户情况：'+clients[name].level+'级，'+clients[name].stage+'，痛点：'+clients[name].pain+'\n\n':'';
-    var res=await fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是资深销售顾问，擅长写自然口语化的话术，说话像朋友不像销售员。'},{role:'user',content:'原话术：\n'+original+'\n\n修改要求：'+hint+'\n\n'+clientInfo+'根据修改要求重新生成3条话术，自然口语化。\n只输出JSON：{"replies":["话术1","话术2","话术3"]}'}],temperature:0.85,max_tokens:600})});
+    var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是资深销售顾问，擅长写自然口语化的话术，说话像朋友不像销售员。'},{role:'user',content:'原话术：\n'+original+'\n\n修改要求：'+hint+'\n\n'+clientInfo+'根据修改要求重新生成3条话术，自然口语化。\n只输出JSON：{"replies":["话术1","话术2","话术3"]}'}],temperature:0.85,max_tokens:600})});
     var data=await res.json();
     var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
     txt=txt.replace(/```json|```/g,'').trim();var m=txt.match(/\{[\s\S]*\}/);
@@ -1065,16 +1099,32 @@ async function regenReply(){
 // ===== 主动跟进弹窗 =====
 function startFollowUp(name){
   followUpClient=name;followUpAiReplies=[];
-  var modal=document.getElementById('followUpModal');modal.style.display='flex';
-  document.getElementById('modalLoading').style.display='flex';
-  document.getElementById('modalContent').style.display='none';
+  var c=clients[name]||{};
+  var lc=levelConfig(c.level||'C');
+  document.getElementById('followUpModal').style.display='flex';
   document.getElementById('modalSaveHint').style.display='none';
   document.getElementById('followUpContext').value='';
-  var c=clients[name]||{};
   document.getElementById('modalClientName').textContent=name;
-  document.getElementById('modalClientInfo').textContent=(c.level||'C')+'级 · '+(c.stage||'')+' · 痛点：'+(c.pain||'未知')+' · 上次：'+(c.lastContact||'未知');
-  if(!cfg.dsKey){showToast('请先配置API Key');closeFollowUpModal();return;}
-  loadFollowUpReplies(name);
+  document.getElementById('modalClientInfo').textContent=
+    lc.label+' · '+(c.stage||'')+' · 上次：'+(c.lastContact||'未知')+
+    (c.openDate?' · 📅'+c.openDate:'')+
+    (c.followCount?' · 已跟进'+c.followCount+'次':'');
+  var detail=document.getElementById('modalClientDetail');
+  if(detail){
+    var tags=(c.tags||[]).map(function(t){return '<span class="tag tag-info" style="font-size:10px">'+t+'</span>';}).join(' ');
+    detail.innerHTML=
+      '<div style="display:grid;grid-template-columns:64px 1fr;gap:4px 8px">'+
+      '<span style="color:var(--text3)">意向等级</span><span><span class="tag '+lc.cls+'">'+lc.label+'</span></span>'+
+      '<span style="color:var(--text3)">核心痛点</span><span>'+(c.pain||'暂无')+'</span>'+
+      '<span style="color:var(--text3)">当前阶段</span><span>'+(c.stage||'初识')+'</span>'+
+      (c.openDate?'<span style="color:var(--text3)">开业时间</span><span style="color:var(--amber)">'+c.openDate+'</span>':'')+
+      (c.fuzzyTime?'<span style="color:var(--text3)">客户说过</span><span style="color:var(--text2)">'+c.fuzzyTime+'</span>':'')+
+      '<span style="color:var(--text3)">摘要</span><span style="color:var(--text2)">'+(c.summary||'暂无')+'</span>'+
+      '<span style="color:var(--text3)">AI标签</span><span>'+tags+'</span>'+
+      '<span style="color:var(--text3)">下次跟进</span><span style="color:var(--amber)">'+(c.nextFollow||'未设置')+'</span>'+
+      '</div>';
+  }
+  refreshModalHistory();
 }
 
 function loadFollowUpReplies(name){
@@ -1093,7 +1143,7 @@ function loadFollowUpReplies(name){
     +'\n\n本次话术策略：'+strategy
     +'\n\n铁律：不说催促词，不连续两个问题，语气像朋友发微信'+(cfg.knowledgeBase?'\\n产品知识：'+cfg.knowledgeBase.slice(0,500):'')
     +'\\n\\n本次策略：'+strategy+'\\n\\n铁律：不说销售腔，不催促，不连续两个问题'
-  fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:sysMsg},{role:'user',content:parts.join('\n')}],temperature:0.85,max_tokens:600})})
+  fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:sysMsg},{role:'user',content:parts.join('\n')}],temperature:0.85,max_tokens:600})})
   .then(function(res){if(!res.ok)return res.text().then(function(t){throw new Error('HTTP '+res.status+': '+t.slice(0,60));});return res.json();})
   .then(function(data){
     var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
@@ -1151,7 +1201,7 @@ function startAfterSaleFollowUp(name,action){
   var sys='\u4f60\u662f\u4e91e\u5b9d\u552e\u540e\u670d\u52a1\u4eba\u5458\uff0c\u8bf4\u8bdd\u81ea\u7136\u50cf\u670b\u53cb\u3002'+(kb?'\n\u4ea7\u54c1\uff1a'+kb.slice(0,300):'');
   var usr='\u5ba2\u6237\u3010'+name+'\u3011\u5df2\u6210\u4ea4'+ds+'\u5929\u3002\u672c\u6b21\u552e\u540e\u52a8\u4f5c\uff1a'+action+'\u3002\n\u751f\u6210\u4e00\u6761\u81ea\u7136\u8ddf\u8fdb\u8bdd\u672f\uff0840\u5b57\u5185\uff0c\u50cf\u670b\u53cb\u53d1\u5fae\u4fe1\uff09\u3002\n\u53ea\u8f93\u51fa\u8bdd\u672f\u6587\u5b57\u3002';
   showToast('\u751f\u6210\u552e\u540e\u8bdd\u672f\u4e2d\u2026');
-  fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.8,max_tokens:150})})
+  fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.8,max_tokens:150})})
   .then(function(r){return r.json();})
   .then(function(data){
     var sc=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
@@ -1171,6 +1221,97 @@ function startAfterSaleFollowUp(name,action){
     if(clients[name]){var si=AFTER_SALE_STEPS.findIndex(function(s){return s.action===action;});if(si>=0)clients[name].afterSaleStep=si;saveClientToCloud(name);}
   }).catch(function(e){showToast('\u751f\u6210\u5931\u8d25\uff1a'+e.message);});
 }
+
+function refreshModalHistory(){
+  var name=followUpClient;if(!name)return;
+  var c=clients[name]||{};
+  var countEl=document.getElementById('modalHistCount');
+  var count=countEl?parseInt(countEl.value)||20:20;
+  var hist=(c.history||[]);
+  var slice=count>=50?hist:hist.slice(-count);
+  var lines=slice.map(function(h){
+    var role=h.role==='user'?'客户':'我';
+    var t=h.time?h.time.slice(5,16):'';
+    return (t?'['+t+'] ':'')+role+'：'+(h.replyUsed&&h.role!=='user'?h.replyUsed:h.content||'');
+  }).filter(function(l){return l.trim();});
+  var el=document.getElementById('modalHistoryEl');
+  if(el){
+    el.textContent=lines.length?lines.join('\n'):'暂无对话记录';
+    el.scrollTop=el.scrollHeight;
+  }
+}
+
+function copyForGemini(){
+  var name=followUpClient;if(!name){showToast('没有选中客户');return;}
+  var c=clients[name]||{};
+  var context=document.getElementById('followUpContext').value.trim();
+  var countEl=document.getElementById('modalHistCount');
+  var count=countEl?parseInt(countEl.value)||20:20;
+  var hist=(c.history||[]);
+  var slice=count>=50?hist:hist.slice(-count);
+  var lines=slice.map(function(h){
+    var role=h.role==='user'?'客户':'我';
+    var t=h.time?h.time.slice(0,16):'';
+    return (t?'['+t+'] ':'')+role+'：'+(h.replyUsed&&h.role!=='user'?h.replyUsed:h.content||'');
+  }).filter(function(l){return l.trim();});
+  var lc=levelConfig(c.level||'C');
+  var parts=[
+    '【客户信息】',
+    '姓名：'+name,
+    '意向等级：'+lc.label,
+    '核心痛点：'+(c.pain||'未知'),
+    '当前阶段：'+(c.stage||''),
+    '摘要：'+(c.summary||''),
+  ];
+  if(c.openDate)parts.push('开业时间：'+c.openDate);
+  if(c.fuzzyTime)parts.push('客户说过：'+c.fuzzyTime);
+  parts.push('AI标签：'+(c.tags||[]).join('、'));
+  parts.push('已跟进次数：'+(c.followCount||0)+'次');
+  parts.push('');
+  parts.push('【最近对话（'+lines.length+'条）】');
+  lines.forEach(function(l){parts.push(l);});
+  parts.push('');
+  if(context){parts.push('【今日背景】');parts.push(context);parts.push('');}
+  parts.push('【任务】根据以上客户信息和对话记录，帮我生成今天主动跟进的话术。');
+  navigator.clipboard.writeText(parts.join('\n')).then(function(){
+    showToast('已复制！粘贴给Gemini ✓');
+    var hint=document.getElementById('modalSaveHint');
+    hint.textContent='已复制客户信息和'+lines.length+'条对话 ✓';
+    hint.style.display='block';
+  });
+}
+
+function markFollowDone(){
+  var name=followUpClient;if(!name||!clients[name])return;
+  var today=new Date();var todayStr=today.toISOString().slice(0,10);
+  var c=clients[name];
+  var gaps={'Aplus':1,'A':2,'B':3,'C':5,'done':7};
+  var gap=gaps[c.level]||c.follow_days||2;
+  var nd=new Date(today);nd.setDate(nd.getDate()+gap);
+  var nextFollow=nd.toISOString().slice(0,10);
+  if(c.openDate){
+    var os=extractDateFromText(c.openDate);
+    if(os){
+      var dto=Math.floor((new Date(os)-today)/86400000);
+      if(dto<=0)nextFollow=todayStr;
+      else if(dto<=7)nextFollow=todayStr;
+      else if(dto<=10){var t=new Date(today);t.setDate(t.getDate()+1);nextFollow=t.toISOString().slice(0,10);}
+      else if(dto<=14){var t2=new Date(today);t2.setDate(t2.getDate()+2);nextFollow=t2.toISOString().slice(0,10);}
+    }
+  }
+  clients[name].lastContact=todayStr;
+  clients[name].nextFollow=nextFollow;
+  clients[name].followCount=(clients[name].followCount||0)+1;
+  todayFollowedSet[name]=true;
+  addTimeline(name,'follow_up','主动跟进','','');
+  saveClientToCloud(name);
+  renderDashboard();renderClients();
+  var hint=document.getElementById('modalSaveHint');
+  hint.textContent='✅ 已标记跟进，下次跟进：'+nextFollow;
+  hint.style.display='block';
+  showToast('已标记，下次跟进：'+nextFollow);
+}
+
 // ===== 对话历史 =====
 function renderHistory(name){
   var card=document.getElementById('historyCard');var el=document.getElementById('historyEl');if(!card||!el)return;
@@ -1279,7 +1420,7 @@ async function genDailyFollowup(){
   for(var i=0;i<toFollow.length;i++){
     var name=toFollow[i][0];var c=toFollow[i][1];
     try{
-      var res=await fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是资深销售顾问，说话像朋友，不说销售腔。禁止用"临门一脚""把握机会"。'},{role:'user',content:'客户【'+name+'】'+c.level+'级，痛点：'+c.pain+'，阶段：'+c.stage+'，摘要：'+c.summary+'。\n生成一条今天主动联系的开场话术：像朋友发微信，从客户关心的事切入，不直接谈产品，40字以内。\n只输出话术文字。'}],temperature:0.8,max_tokens:150})});
+      var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是资深销售顾问，说话像朋友，不说销售腔。禁止用"临门一脚""把握机会"。'},{role:'user',content:'客户【'+name+'】'+c.level+'级，痛点：'+c.pain+'，阶段：'+c.stage+'，摘要：'+c.summary+'。\n生成一条今天主动联系的开场话术：像朋友发微信，从客户关心的事切入，不直接谈产品，40字以内。\n只输出话术文字。'}],temperature:0.8,max_tokens:150})});
       var data=await res.json();results.push({name:name,c:c,script:(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||''});
     }catch(e){results.push({name:name,c:c,script:'（生成失败）'});}
   }
@@ -1311,7 +1452,7 @@ async function analyzeStyle(silent){
   if(!silent)showToast('正在分析话术风格…');
   var samples=changed.slice(0,20).map(function(s,i){return '样本'+(i+1)+':\nAI版：'+s.ai+'\n我的版：'+s.mine;}).join('\n\n');
   try{
-    var res=await fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'分析销售人员话术风格，输出JSON。'},{role:'user',content:'分析以下修改记录，输出JSON：{"summary":"风格总结","traits":["特征1","特征2","特征3"],"tone":"语气","avoid":["避免1","避免2"],"advice":"给AI的优化提示词"}\n\n'+samples}],temperature:0.5,max_tokens:600})});
+    var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'分析销售人员话术风格，输出JSON。'},{role:'user',content:'分析以下修改记录，输出JSON：{"summary":"风格总结","traits":["特征1","特征2","特征3"],"tone":"语气","avoid":["避免1","避免2"],"advice":"给AI的优化提示词"}\n\n'+samples}],temperature:0.5,max_tokens:600})});
     var data=await res.json();
     var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'{}';
     txt=txt.replace(/```json|```/g,'').trim();var m=txt.match(/\{[\s\S]*\}/);
@@ -1434,7 +1575,7 @@ async function wrapUpClient(){
   var btn=event.target;btn.disabled=true;btn.textContent='总结中…';
   var histTxt=history.slice(-20).map(function(h){return(h.role==='user'?'客户':'我')+'：'+h.content;}).join('\n');
   try{
-    var res=await fetch('https://allapi.store/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是销售顾问，分析对话，输出JSON：{"status":"客户现状","level":"A/B/C","key_concern":"核心顾虑","next_action":"下一步行动","next_script":"跟进话术60字内","follow_days":2}'},{role:'user',content:'分析客户【'+name+'】的对话：\n\n'+histTxt}],temperature:0.5,max_tokens:500})});
+    var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是销售顾问，分析对话，输出JSON：{"status":"客户现状","level":"A/B/C","key_concern":"核心顾虑","next_action":"下一步行动","next_script":"跟进话术60字内","follow_days":2}'},{role:'user',content:'分析客户【'+name+'】的对话：\n\n'+histTxt}],temperature:0.5,max_tokens:500})});
     var data=await res.json();
     var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'{}';
     txt=txt.replace(/```json|```/g,'').trim();var m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error('格式错误');
