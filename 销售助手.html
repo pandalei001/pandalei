@@ -266,10 +266,21 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
 
 <!-- 客户台账 -->
 <div class="page" id="page-clients">
-  <div class="flex mb8" style="flex-wrap:wrap">
-    <input type="text" id="searchClient" placeholder="搜索客户…" style="max-width:200px" oninput="renderClients()">
-    <select id="filterLevel" onchange="renderClients()" style="max-width:130px">
-      <option value="">全部</option><option value="A">A 热意向</option><option value="B">B 有兴趣</option><option value="C">C 了解中</option>
+  <div class="flex mb8" style="flex-wrap:wrap;gap:6px">
+    <input type="text" id="searchClient" placeholder="搜索客户…" style="max-width:180px" oninput="renderClients()">
+    <select id="filterLevel" onchange="renderClients()" style="max-width:140px">
+      <option value="">全部等级</option>
+      <option value="Aplus">A+ 准成交</option>
+      <option value="A">A 强兴趣</option>
+      <option value="B">B 有兴趣</option>
+      <option value="C">C 了解中</option>
+      <option value="done">✓ 成交</option>
+    </select>
+    <select id="sortOrder" onchange="renderClients()" style="max-width:150px">
+      <option value="urgency">综合紧急度</option>
+      <option value="addTime">添加时间（新→旧）</option>
+      <option value="lastChat">最近聊天时间</option>
+      <option value="done">成交优先</option>
     </select>
     <button class="btn btn-primary btn-sm" onclick="genDailyFollowup()">生成今日跟进</button>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">导出CSV</button>
@@ -505,7 +516,10 @@ async function loadFromCloud(){
         tags:row.tags||[],wxGroup:row.wx_group||'',openDate:row.open_date||'',
         history:row.history||[],lastContact:row.last_contact||'',
         nextFollow:row.next_follow||'',shopTags:row.shop_tags||[],
-        _dbId:row.id
+        subType:row.sub_type||'',fuzzyTime:row.fuzzy_time||'',
+        followCount:row.follow_count||0,doneDate:row.done_date||'',
+        afterSaleStep:row.after_sale_step||0,
+        _dbId:row.id,_createdAt:(row.created_at||'').slice(0,10)
       };
     });
     // 加载QA
@@ -1299,6 +1313,38 @@ function markFollowDone(){
       else if(dto<=14){var t2=new Date(today);t2.setDate(t2.getDate()+2);nextFollow=t2.toISOString().slice(0,10);}
     }
   }
+  // 沉默递增：检查客户最后一条消息是否是我发的（客户未回）
+  var hist=clients[name].history||[];
+  var lastMsg=hist.length?hist[hist.length-1]:null;
+  var clientSilent=lastMsg&&lastMsg.role==='assistant'; // 最后是我发的，客户没回
+  var silentDays=0;
+  if(clientSilent&&clients[name].lastContact){
+    silentDays=Math.floor((new Date()-new Date(clients[name].lastContact))/86400000);
+  }
+
+  // 有开业时间优先按开业节奏，没有开业时间才用沉默递增
+  var hasOpenDate=!!(clients[name].openDate&&extractDateFromText(clients[name].openDate));
+  if(!hasOpenDate&&clientSilent){
+    // 沉默递增：沉默越久，下次间隔越长
+    if(silentDays>=7)gap=7;
+    else if(silentDays>=3)gap=5;
+    else if(silentDays>=1)gap=3;
+  }
+
+  var nd2=new Date(todayStr);nd2.setDate(nd2.getDate()+gap);
+  nextFollow=nd2.toISOString().slice(0,10);
+  // 开业时间节点覆盖
+  if(hasOpenDate){
+    var os2=extractDateFromText(clients[name].openDate);
+    if(os2){
+      var dto2=Math.floor((new Date(os2)-new Date(todayStr))/86400000);
+      if(dto2<=0)nextFollow=todayStr;
+      else if(dto2<=7)nextFollow=todayStr;
+      else if(dto2<=10){var tmp=new Date(todayStr);tmp.setDate(tmp.getDate()+1);nextFollow=tmp.toISOString().slice(0,10);}
+      else if(dto2<=14){var tmp2=new Date(todayStr);tmp2.setDate(tmp2.getDate()+2);nextFollow=tmp2.toISOString().slice(0,10);}
+    }
+  }
+
   clients[name].lastContact=todayStr;
   clients[name].nextFollow=nextFollow;
   clients[name].followCount=(clients[name].followCount||0)+1;
@@ -1307,9 +1353,27 @@ function markFollowDone(){
   saveClientToCloud(name);
   renderDashboard();renderClients();
   var hint=document.getElementById('modalSaveHint');
-  hint.textContent='✅ 已标记跟进，下次跟进：'+nextFollow;
+  var silentNote=clientSilent&&!hasOpenDate?' (客户未回，间隔已拉长)':'';
+  hint.textContent='✅ 已标记跟进，下次跟进：'+nextFollow+silentNote;
   hint.style.display='block';
   showToast('已标记，下次跟进：'+nextFollow);
+}
+
+
+function markClientDone(name){
+  if(!confirm('确认将【'+name+'】标记为已成交？\n成交后会进入售后跟进周期。'))return;
+  if(!clients[name])return;
+  var today=new Date().toISOString().slice(0,10);
+  clients[name].level='done';
+  clients[name].subType='已成交';
+  clients[name].doneDate=today;
+  clients[name].afterSaleStep=0;
+  // 成交当天就需要发货跟进
+  clients[name].nextFollow=today;
+  clients[name].lastContact=today;
+  saveClientToCloud(name);
+  renderClients();renderDashboard();
+  showToast('【'+name+'】已标记为成交 ✓ 进入售后跟进周期');
 }
 
 // ===== 对话历史 =====
@@ -1361,7 +1425,26 @@ function renderClients(){
   var list=document.getElementById('clientList');if(!list)return;
   var names=Object.keys(clients).filter(function(n){return(!search||n.toLowerCase().includes(search))&&(!fl||clients[n].level===fl);});
   if(!names.length){list.innerHTML='<div class="empty">暂无客户记录</div>';return;}
-  names.sort(function(a,b){return calcUrgencyScore(b,clients[b])-calcUrgencyScore(a,clients[a]);});
+  var sortMode=document.getElementById('sortOrder')&&document.getElementById('sortOrder').value||'urgency';
+  names.sort(function(a,b){
+    var ca=clients[a],cb=clients[b];
+    if(sortMode==='urgency'){
+      return calcUrgencyScore(b,cb)-calcUrgencyScore(a,ca);
+    } else if(sortMode==='addTime'){
+      // 用 created_at 或 history 最早时间倒序（新的在前）
+      var ta=ca._createdAt||'0000';var tb=cb._createdAt||'0000';
+      return tb.localeCompare(ta);
+    } else if(sortMode==='lastChat'){
+      var la=ca.lastContact||'0000';var lb=cb.lastContact||'0000';
+      return lb.localeCompare(la);
+    } else if(sortMode==='done'){
+      // 成交的排最后，其余按紧急度
+      var da=(ca.level==='done'?1:0),db=(cb.level==='done'?1:0);
+      if(da!==db)return da-db;
+      return calcUrgencyScore(b,cb)-calcUrgencyScore(a,ca);
+    }
+    return 0;
+  });
   list.innerHTML='';
   names.forEach(function(name){
     var c=clients[name];var lc=levelConfig(c.level||'C');
@@ -1383,12 +1466,15 @@ function renderClients(){
         '<span class="tag '+lc.cls+'">'+lc.label+'</span>'+fcHtml+
         '<div class="client-follow">跟进：'+(c.nextFollow||'未设置')+' <span class="rc-efd" style="cursor:pointer;color:var(--accent);font-size:10px">[改]</span></div>'+
         '<button class="rc-sfu btn btn-primary btn-sm" style="margin-top:4px;font-size:11px;padding:3px 9px">主动跟进</button>'+
+      (c.level!=='done'?'<button class="rc-mdc btn btn-ghost btn-sm" style="margin-top:3px;font-size:10px;padding:2px 7px;color:var(--accent)">标记成交</button>':'')+
       '</div>';
     (function(n){
       el.querySelector('.client-avatar').onclick=function(){openClient(n);};
       el.querySelector('.client-info').onclick=function(){openClient(n);};
       el.querySelector('.rc-efd').onclick=function(ev){ev.stopPropagation();editFollowDate(n);};
       el.querySelector('.rc-sfu').onclick=function(ev){ev.stopPropagation();startFollowUp(n);};
+      var mdcBtn=el.querySelector('.rc-mdc');
+      if(mdcBtn)mdcBtn.onclick=function(ev){ev.stopPropagation();markClientDone(n);};
     })(name);
     list.appendChild(el);
   });
@@ -1612,7 +1698,12 @@ function updateDataStats(){
 function showLoading(show){document.getElementById('loadingEl').style.display=show?'flex':'none';if(show)document.getElementById('resultEmpty').style.display='none';}
 function showToast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},3000);}
 
-loadStorage();
+// 直接启动，不需要登录
+currentUserId = '雷攀';
+document.getElementById('loginPage').style.display = 'none';
+document.getElementById('mainApp').style.display = 'block';
+document.getElementById('userBadge').textContent = currentUserId;
+loadFromCloud();
 
 </script>
 </body>
