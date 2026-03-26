@@ -704,9 +704,12 @@ async function renderDashboard(){
       div.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 11px;background:var(--bg3);border-radius:8px;margin-bottom:5px;border:1px solid '+(score>=70?'rgba(255,91,91,.35)':'var(--border)');
       var btnHtml=isFollowed
         ?'<button class="btn btn-ghost btn-sm" style="color:var(--green);border-color:rgba(46,204,138,.4)" disabled>已跟进 ✓</button>'
-        :'<button class="sfu-dash btn btn-primary btn-sm">跟进</button>';
+        :'<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end"><button class="sfu-dash btn btn-primary btn-sm">跟进</button><button class="slc-dash btn btn-ghost btn-sm" style="font-size:10px;padding:2px 7px">改等级</button></div>';
       div.innerHTML='<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:3px"><span style="font-weight:500;font-size:13px">'+name+'</span><span class="tag '+lc.cls+'">'+lc.label+'</span>'+urgentHtml+openHtml+countHtml+'</div><div style="font-size:11px;color:var(--text2);margin-top:2px">'+c.pain+'</div>'+fuzzyHtml+'</div><div style="margin-left:8px;flex-shrink:0">'+btnHtml+'</div>';
-      if(!isFollowed)(function(n){var b=div.querySelector('.sfu-dash');if(b)b.onclick=function(){startFollowUp(n);};})(name);
+      if(!isFollowed)(function(n){
+        var b=div.querySelector('.sfu-dash');if(b)b.onclick=function(){startFollowUp(n);};
+        var s=div.querySelector('.slc-dash');if(s)s.onclick=function(){changeClientLevel(n);};
+      })(name);
       fl.appendChild(div);
     });
   }
@@ -807,7 +810,7 @@ function buildPrompt(analysisOnly){
   var styleAddon='';
   if(cfg.styleProfile&&cfg.styleProfile.advice)styleAddon='\n\n## 我的话术风格\n'+cfg.styleProfile.advice+'\n语气：'+(cfg.styleProfile.tone||'')+'\n避免：'+(cfg.styleProfile.avoid||[]).join('、');
   var base='你是云e宝服装管理系统顶级销售顾问，20年经验，擅长读懂客户心理。\n\n## 产品知识库\n'+kb+styleAddon;
-  var note='\n\n重要规则：\n1)标签根据对话内容提取，不能根据名字推断\n2)我说的是销售话术，客户说的才是客户需求\n3)痛点只提取客户自己说出的内容\n4)开业时间必须在tags里记录如"预计3月25日开业"\n\n子类型判断（写入sub_type字段）：\nAplus=准成交：问快递时效/付款方式/能否走平台/能否升级/说晚点联系/问合同发票\nA=强兴趣：问优惠/活动/说考虑一下/问试用演示\nB=有兴趣：咨询功能细节但没问价格\nC=了解中：刚接触/闲聊\ndone=已成交：出现付款/转账/下单/打款/收到了\n\n模糊时间节点（写入fuzzy_time字段，没有则空字符串）：\n如果客户说了"晚点""明天""装修好了""年后""下个月""等我考虑""最近忙"等，原话写入fuzzy_time';
+  var note='\n\n重要规则：\n1)标签根据对话内容提取，不能根据名字推断\n2)我说的是销售话术，客户说的才是客户需求\n3)痛点只提取客户自己说出的内容\n4)开业时间必须在tags里记录如"预计3月25日开业"\n\n【等级判断严格标准】\n\nAplus=准成交（同时满足：有明确购买动作信号 + 没有否定信号）\n✅ 触发Aplus的信号：主动问快递时效/付款方式/能否走平台/能否升级/问合同发票/问开通流程/说"好的我考虑一下今天/明天给你回复"\n❌ 以下情况【不能】判Aplus，应降为A：\n  - 说"我考虑一下"但没有明确时间承诺\n  - 说"晚点联系"但没有其他购买信号\n  - 只是礼貌性结束对话（"好的知道了""嗯嗯""谢谢"）\n  - 问了价格但表示"有点贵""再想想""和别人比比"\n  - 上一条是我发的消息，客户还没回复\n\nA=强兴趣（有明确兴趣但未到临门一脚）\n✅ 触发A的信号：主动问优惠/活动/问试用演示/说考虑一下（无时间节点）/问具体价格/对比竞品/问能否定制\n❌ 以下情况【不能】判A，应降为B或C：\n  - 只是随便问了一个功能，没有表达购买意向\n  - 态度冷淡，只回复"嗯""哦""知道了"\n\nB=有兴趣：咨询功能细节但没问价格，态度积极但还在了解阶段\nC=了解中：刚接触/闲聊/被动回复/态度不明\ndone=已成交：对话出现付款/转账/下单/打款/收到货了等【明确成交行为】（不能猜测）\n\n⚠️ 宁可低判不高判：拿不准A+还是A → 判A；拿不准A还是B → 判B\n\n模糊时间节点（写入fuzzy_time字段，没有则空字符串）：\n如果客户说了"晚点""明天""装修好了""年后""下个月""等我考虑""最近忙"等，原话写入fuzzy_time';
   if(analysisOnly){
     return base+'\n\n## 任务\n深度分析客户对话，只输出JSON：\n{"intent":"核心意图","level":"Aplus或A或B或C或done","sub_type":"准成交/强兴趣/有兴趣/了解中/已成交","pain":"具体痛点","stage":"初识/咨询/异议/准成交","follow_days":1,"summary":"一句话画像","tags":["标签1","标签2","标签3","标签4","标签5"],"wx_group":"A类重点跟进或B类培育中或C类待激活","fuzzy_time":"模糊时间原话没有则空","replies":[]}\n等级：A热意向 B有兴趣 C了解中'+note;
   }else{
@@ -1360,6 +1363,40 @@ function markFollowDone(){
 }
 
 
+// ===== 手动修改客户等级 =====
+function changeClientLevel(name){
+  var c=clients[name];if(!c)return;
+  var levels=['Aplus','A','B','C','done'];
+  var labels={'Aplus':'A+ 准成交','A':'A 强兴趣','B':'B 有兴趣','C':'C 了解中','done':'✓ 已成交'};
+  var cur=c.level||'C';
+  // 构建选择提示
+  var opts=levels.map(function(l,i){return (i+1)+'. '+labels[l]+(l===cur?' ← 当前':'');}).join('\n');
+  var input=prompt('【'+name+'】当前等级：'+labels[cur]+'\n\n选择新等级（输入数字）：\n'+opts,'');
+  if(input===null)return;
+  var idx=parseInt(input)-1;
+  if(isNaN(idx)||idx<0||idx>=levels.length){showToast('输入无效，请输入1-5的数字');return;}
+  var newLevel=levels[idx];
+  if(newLevel===cur){showToast('等级未变化');return;}
+  var today=new Date().toISOString().slice(0,10);
+  clients[name].level=newLevel;
+  // 成交时自动记录成交日期
+  if(newLevel==='done'&&!clients[name].doneDate){
+    clients[name].doneDate=today;
+    clients[name].afterSaleStep=0;
+    clients[name].nextFollow=today;
+  }
+  // 重新计算跟进时间（非成交客户）
+  if(newLevel!=='done'){
+    var gaps={Aplus:1,A:2,B:3,C:5};
+    var nd=new Date();nd.setDate(nd.getDate()+(gaps[newLevel]||2));
+    clients[name].nextFollow=nd.toISOString().slice(0,10);
+  }
+  saveClientToCloud(name);
+  renderClients();renderDashboard();renderClientSelect();
+  showToast('【'+name+'】已改为 '+labels[newLevel]+' ✓');
+  addTimeline(name,'manual_edit','手动修改等级：'+labels[cur]+' → '+labels[newLevel],'','');
+}
+
 function markClientDone(name){
   if(!confirm('确认将【'+name+'】标记为已成交？\n成交后会进入售后跟进周期。'))return;
   if(!clients[name])return;
@@ -1463,7 +1500,7 @@ function renderClients(){
         '<div class="client-meta" style="margin-top:1px">'+(c.stage||'')+' · '+(c.pain||'未知痛点')+fuzzyHtml+'</div>'+
       '</div>'+
       '<div class="client-right">'+
-        '<span class="tag '+lc.cls+'">'+lc.label+'</span>'+fcHtml+
+        '<span class="tag '+lc.cls+'" style="cursor:pointer" title="点击修改等级" onclick="event.stopPropagation();changeClientLevel(\''+name+'\')">'+lc.label+' ✎</span>'+fcHtml+
         '<div class="client-follow">跟进：'+(c.nextFollow||'未设置')+' <span class="rc-efd" style="cursor:pointer;color:var(--accent);font-size:10px">[改]</span></div>'+
         '<button class="rc-sfu btn btn-primary btn-sm" style="margin-top:4px;font-size:11px;padding:3px 9px">主动跟进</button>'+
       (c.level!=='done'?'<button class="rc-mdc btn btn-ghost btn-sm" style="margin-top:3px;font-size:10px;padding:2px 7px;color:var(--accent)">标记成交</button>':'')+
