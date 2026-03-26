@@ -1131,7 +1131,11 @@ function startFollowUp(name){
     var tags=(c.tags||[]).map(function(t){return '<span class="tag tag-info" style="font-size:10px">'+t+'</span>';}).join(' ');
     detail.innerHTML=
       '<div style="display:grid;grid-template-columns:64px 1fr;gap:4px 8px">'+
-      '<span style="color:var(--text3)">意向等级</span><span><span class="tag '+lc.cls+'">'+lc.label+'</span></span>'+
+      '<span style="color:var(--text3)">意向等级</span>'+
+      '<span style="display:flex;align-items:center;gap:6px">'+
+        '<span class="tag '+lc.cls+'" id="modalLevelTag" style="cursor:pointer" onclick="changeClientLevelFromModal()" title="点击修改等级">'+lc.label+'</span>'+
+        '<button onclick="changeClientLevelFromModal()" style="font-size:10px;padding:1px 7px;border-radius:5px;background:var(--bg2);border:1px solid var(--border);color:var(--accent);cursor:pointer">改等级 ✎</button>'+
+      '</span>'+
       '<span style="color:var(--text3)">核心痛点</span><span>'+(c.pain||'暂无')+'</span>'+
       '<span style="color:var(--text3)">当前阶段</span><span>'+(c.stage||'初识')+'</span>'+
       (c.openDate?'<span style="color:var(--text3)">开业时间</span><span style="color:var(--amber)">'+c.openDate+'</span>':'')+
@@ -1364,12 +1368,28 @@ function markFollowDone(){
 
 
 // ===== 手动修改客户等级 =====
-function changeClientLevel(name){
+function changeClientLevelFromModal(){
+  // 从弹窗内直接调用，使用 followUpClient
+  var name=followUpClient;
+  if(!name){showToast('没有选中客户');return;}
+  changeClientLevel(name,function(){
+    // 改完后刷新弹窗内的等级显示
+    var c=clients[name];if(!c)return;
+    var lc=levelConfig(c.level||'C');
+    var tag=document.getElementById('modalLevelTag');
+    if(tag){tag.className='tag '+lc.cls;tag.textContent=lc.label;}
+    document.getElementById('modalClientInfo').textContent=
+      lc.label+' · '+(c.stage||'')+' · 上次：'+(c.lastContact||'未知')+
+      (c.openDate?' · 📅'+c.openDate:'')+
+      (c.followCount?' · 已跟进'+c.followCount+'次':'');
+  });
+}
+
+function changeClientLevel(name,callback){
   var c=clients[name];if(!c)return;
   var levels=['Aplus','A','B','C','done'];
   var labels={'Aplus':'A+ 准成交','A':'A 强兴趣','B':'B 有兴趣','C':'C 了解中','done':'✓ 已成交'};
   var cur=c.level||'C';
-  // 构建选择提示
   var opts=levels.map(function(l,i){return (i+1)+'. '+labels[l]+(l===cur?' ← 当前':'');}).join('\n');
   var input=prompt('【'+name+'】当前等级：'+labels[cur]+'\n\n选择新等级（输入数字）：\n'+opts,'');
   if(input===null)return;
@@ -1379,13 +1399,11 @@ function changeClientLevel(name){
   if(newLevel===cur){showToast('等级未变化');return;}
   var today=new Date().toISOString().slice(0,10);
   clients[name].level=newLevel;
-  // 成交时自动记录成交日期
   if(newLevel==='done'&&!clients[name].doneDate){
     clients[name].doneDate=today;
     clients[name].afterSaleStep=0;
     clients[name].nextFollow=today;
   }
-  // 重新计算跟进时间（非成交客户）
   if(newLevel!=='done'){
     var gaps={Aplus:1,A:2,B:3,C:5};
     var nd=new Date();nd.setDate(nd.getDate()+(gaps[newLevel]||2));
@@ -1395,6 +1413,7 @@ function changeClientLevel(name){
   renderClients();renderDashboard();renderClientSelect();
   showToast('【'+name+'】已改为 '+labels[newLevel]+' ✓');
   addTimeline(name,'manual_edit','手动修改等级：'+labels[cur]+' → '+labels[newLevel],'','');
+  if(typeof callback==='function')callback();
 }
 
 function markClientDone(name){
