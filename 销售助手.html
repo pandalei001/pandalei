@@ -85,31 +85,14 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
 .tl-content{flex:1;background:var(--bg3);border-radius:8px;padding:9px 12px;border:1px solid var(--border);}
 .tl-time{font-size:10px;color:var(--text3);}
 .tl-text{font-size:12px;color:var(--text);line-height:1.6;margin-top:2px;}
-/* 登录页 */
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;}
-.login-box{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:32px;width:360px;}
-.login-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:6px;}
-.login-sub{font-size:13px;color:var(--text2);margin-bottom:24px;}
+
 </style>
 </head>
 <body>
 
-<!-- 登录页 -->
-<div id="loginPage" class="login-wrap">
-  <div class="login-box">
-    <div class="login-title">云e宝 · 销售助手</div>
-    <div class="login-sub">请输入你的工号登录（同一工号数据共享）</div>
-    <div class="setting-group">
-      <div class="setting-label">工号 / 姓名</div>
-      <input type="text" id="loginUserId" placeholder="如：雷攀 或 LP001" onkeydown="if(event.key==='Enter')doLogin()">
-      <div class="setting-hint">多人使用时填不同工号，数据相互独立</div>
-    </div>
-    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">进入系统</button>
-  </div>
-</div>
 
 <!-- 主应用 -->
-<div id="mainApp" style="display:none">
+<div id="mainApp">
 <div class="topbar">
   <div class="logo">云e宝</div>
   <div class="tabs">
@@ -117,8 +100,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
     <div class="tab" onclick="switchTab('chat')">💬 话术助手</div>
     <div class="tab" onclick="switchTab('clients')">👥 客户台账</div>
     <div class="tab" onclick="switchTab('daily')">📋 每日跟进</div>
-    <div class="tab" onclick="switchTab('style')">🧠 风格进化</div>
-    <div class="tab" onclick="switchTab('qa')">📚 QA知识库</div>
+    <div class="tab" onclick="switchTab('csvsync')">📥 导入同步</div>
     <div class="tab" onclick="switchTab('settings')">⚙️ 配置</div>
   </div>
   <div class="topbar-right">
@@ -240,8 +222,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
               <button class="btn btn-primary" onclick="copyReply()">复制话术</button>
               <button class="btn btn-ghost btn-sm" onclick="wrapUpClient()">收尾总结</button>
               <button class="btn btn-ghost btn-sm" onclick="quickEditFollowDate()">改跟进时间</button>
-              <button class="btn btn-ghost btn-sm" onclick="saveReplyToQA()">存入QA</button>
-              <button class="btn btn-ghost btn-sm" onclick="exportCSV()">导出CSV</button>
+                            <button class="btn btn-ghost btn-sm" onclick="exportCSV()">导出CSV</button>
             </div>
             <div id="wrapUpResult" style="display:none;margin-top:8px;padding:10px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--green)"></div>
             <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">
@@ -299,49 +280,64 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
   </div>
 </div>
 
-<!-- 风格进化 -->
-<div class="page" id="page-style">
+<!-- 导入同步 -->
+<div class="page" id="page-csvsync">
   <div class="two-col">
     <div>
       <div class="card">
-        <div class="card-title"><span class="dot"></span>我的话术风格</div>
-        <div style="display:flex;gap:8px;margin-bottom:12px">
-          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:9px;text-align:center"><div id="statTotal" style="font-size:20px;font-weight:700;color:var(--accent)">0</div><div style="font-size:10px;color:var(--text3);margin-top:2px">已学习样本</div></div>
-          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:9px;text-align:center"><div id="statChanged" style="font-size:20px;font-weight:700;color:var(--green)">0</div><div style="font-size:10px;color:var(--text3);margin-top:2px">修改次数</div></div>
+        <div class="card-title"><span class="dot"></span>① 拖入 MemoTrace 导出的 CSV</div>
+        <div id="csvDropZone" style="border:2px dashed var(--border);border-radius:10px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="onCsvDrop(event)" onclick="document.getElementById('csvFileInput').click()">
+          <div style="font-size:28px;margin-bottom:8px">📂</div>
+          <div style="font-size:13px;color:var(--text2)">拖入 CSV 文件，或点击选择</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">MemoTrace 导出的 messages.csv</div>
+          <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="onCsvFileSelect(event)">
         </div>
-        <div id="styleProfileEl" style="font-size:13px;color:var(--text2);line-height:1.7">还没有足够样本…</div>
-        <div class="flex mt8">
-          <button class="btn btn-primary btn-sm" onclick="analyzeStyle(false)">重新分析</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearStyleLog()">清空</button>
+        <div id="csvFileInfo" style="display:none;padding:8px 11px;background:rgba(46,204,138,.08);border:1px solid rgba(46,204,138,.25);border-radius:8px;font-size:12px;color:var(--green);margin-bottom:10px"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="font-size:12px;color:var(--text2);white-space:nowrap">提取最近</div>
+          <input type="number" id="csvDays" value="3" min="1" max="90" style="width:64px;text-align:center;font-size:14px;font-weight:700">
+          <div style="font-size:12px;color:var(--text2)">天的消息</div>
+          <div style="font-size:11px;color:var(--text3)">（平时填3，几天没导填实际天数）</div>
+        </div>
+        <button class="btn btn-primary" id="csvParseBtn" onclick="parseCsvFile()" disabled style="width:100%">② 解析 · 预览联系人</button>
+      </div>
+      <div class="card" id="csvFilterCard" style="display:none">
+        <div class="card-title"><span class="dot"></span>③ 确认客户名单（取消勾选排除）</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">共检测到 <span id="csvContactCount" style="color:var(--accent);font-weight:700">0</span> 个联系人，取消勾选非客户</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button class="btn btn-ghost btn-sm" onclick="csvSelectAll(true)">全选</button>
+          <button class="btn btn-ghost btn-sm" onclick="csvSelectAll(false)">全不选</button>
+          <input type="text" id="csvContactSearch" placeholder="搜索…" style="flex:1;font-size:12px" oninput="renderCsvContactList()">
+        </div>
+        <div id="csvContactList" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+        <div style="margin-top:10px">
+          <button class="btn btn-primary" id="csvSyncBtn" onclick="startCsvSync()" style="width:100%">④ 开始 AI 分析 · 同步云端</button>
         </div>
       </div>
     </div>
-    <div><div class="card"><div class="card-title"><span class="dot"></span>学习记录</div><div id="styleLogEl" style="max-height:460px;overflow-y:auto"><div class="empty">暂无记录</div></div></div></div>
-  </div>
-</div>
-
-<!-- QA知识库 -->
-<div class="page" id="page-qa">
-  <div class="two-col">
     <div>
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>搜索 / 新增</div>
-        <input type="text" id="qaSearch" placeholder="搜索关键词…" oninput="renderQA()" style="margin-bottom:8px">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">共 <span id="qaCount">0</span> 条 · 自动同步到AI知识库</div>
-        <button class="btn btn-primary btn-sm" onclick="openQAForm()">+ 新增问答</button>
+      <div class="card" id="csvProgressCard" style="display:none">
+        <div class="card-title"><span class="dot"></span>同步进度</div>
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px">
+            <span id="csvProgressText">准备中…</span>
+            <span id="csvProgressNum">0 / 0</span>
+          </div>
+          <div style="background:var(--bg3);border-radius:4px;height:6px;overflow:hidden">
+            <div id="csvProgressBar" style="height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:4px"></div>
+          </div>
+        </div>
+        <div id="csvProgressLog" style="max-height:420px;overflow-y:auto;font-size:11px;color:var(--text2);line-height:2;font-family:monospace"></div>
       </div>
-      <div class="card" id="qaFormCard" style="display:none">
-        <div class="card-title"><span class="dot"></span><span id="qaFormTitle">新增问答</span></div>
-        <div class="setting-group"><div class="setting-label">客户问题</div><textarea id="qaQ" rows="2" placeholder="如：你们有年费吗？"></textarea></div>
-        <div class="setting-group"><div class="setting-label">最佳回复话术</div><textarea id="qaA" rows="4" placeholder="填入效果最好的回复…"></textarea></div>
-        <div class="setting-group"><div class="setting-label">分类标签（可选）</div><input type="text" id="qaTag" placeholder="如：价格异议、功能介绍"></div>
-        <div class="flex mt8">
-          <button class="btn btn-primary btn-sm" onclick="saveQAItem()">保存</button>
-          <button class="btn btn-ghost btn-sm" onclick="closeQAForm()">取消</button>
+      <div class="card" id="csvDoneCard" style="display:none">
+        <div style="text-align:center;padding:16px">
+          <div style="font-size:32px;margin-bottom:8px">✅</div>
+          <div style="font-size:15px;font-weight:500;color:var(--green)" id="csvDoneText">同步完成</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px" id="csvDoneSub"></div>
+          <button class="btn btn-primary" style="margin-top:14px" onclick="switchTab('dashboard')">查看今日看板</button>
         </div>
       </div>
     </div>
-    <div><div class="card"><div class="card-title"><span class="dot"></span>问答列表</div><div id="qaList"><div class="empty">暂无问答</div></div></div></div>
   </div>
 </div>
 
@@ -466,21 +462,14 @@ async function dbDelete(table,filter){
 
 // ===== 全局状态 =====
 var currentUserId='';
-var cfg={dsKey:'',myWxName:'',knowledgeBase:'',styleLog:[],styleProfile:null,qaList:[]};
+var cfg={dsKey:'',myWxName:'',knowledgeBase:''};
 var clients={};
 var currentClient='';
 var currentAiData=null;
-var qaEditingId=null;
 var followUpAiReplies=[];
 var followUpClient='';
 
-// ===== 登录 =====
-function doLogin(){
-  var uid=document.getElementById('loginUserId').value.trim();
-  if(!uid){showToast('请输入工号或姓名');return;}
   currentUserId=uid;
-  document.getElementById('loginPage').style.display='none';
-  document.getElementById('mainApp').style.display='block';
   document.getElementById('userBadge').textContent=uid;
   loadFromCloud();
 }
@@ -503,9 +492,7 @@ async function loadFromCloud(){
       cfg.dsKey=row.ds_key||'';
       cfg.myWxName=row.my_wx_name||'';
       cfg.knowledgeBase=row.knowledge_base||'';
-      cfg.styleLog=row.style_log||[];
-      cfg.styleProfile=row.style_profile||null;
-    }
+      }
     // 加载客户
     var clientRows=await dbSelect('clients','user_id=eq.'+encodeURIComponent(currentUserId)+'&select=*&order=updated_at.desc');
     clients={};
@@ -524,8 +511,7 @@ async function loadFromCloud(){
     });
     // 加载QA
     var qaRows=await dbSelect('qa_items','user_id=eq.'+encodeURIComponent(currentUserId)+'&select=*&order=created_at.desc');
-    cfg.qaList=(qaRows||[]).map(function(r){return{id:r.id,q:r.question,a:r.answer,tag:r.tag||'',useCount:r.use_count||0};});
-    syncQAToKnowledge();
+    });
     setSyncStatus('ok');
     syncSettingsUI();
     renderAll();
@@ -559,8 +545,7 @@ async function saveClientToCloud(name){
 async function saveConfigToCloud(){
   var row={
     user_id:currentUserId,ds_key:cfg.dsKey,my_wx_name:cfg.myWxName,
-    knowledge_base:cfg.knowledgeBase,style_log:cfg.styleLog,
-    style_profile:cfg.styleProfile,updated_at:new Date().toISOString()
+    knowledge_base:cfg.knowledgeBase,updated_at:new Date().toISOString()
   };
   try{
     setSyncStatus('ing');
@@ -590,8 +575,7 @@ async function forceSync(){
 
 // ===== 渲染全部 =====
 function renderAll(){
-  renderClients();renderClientSelect();renderStyleLog();updateDataStats();
-  renderQA();renderDashboard();
+  renderClients();renderClientSelect();updateDataStats();renderDashboard();
 }
 
 // ===== 配置 =====
@@ -610,13 +594,12 @@ function syncSettingsUI(){
 
 // ===== 标签页 =====
 function switchTab(tab){
-  var tabs=['dashboard','chat','clients','daily','style','qa','settings'];
+  var tabs=['dashboard','chat','clients','daily','csvsync','settings'];
   document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',tabs[i]===tab);});
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.getElementById('page-'+tab).classList.add('active');
   if(tab==='clients')renderClients();
   if(tab==='dashboard')renderDashboard();
-  if(tab==='qa')renderQA();
   if(tab==='settings')updateDataStats();
 }
 
@@ -1078,7 +1061,6 @@ function copyReply(){
     saveClientToCloud(name);
     renderDashboard();
   }
-  if(currentAiData&&(currentAiData.replies||[]).length>0)learnFromEdit(currentAiData.replies[0],text,currentAiData);
 }
 function copyText(text){navigator.clipboard.writeText(text).then(function(){showToast('已复制 ✓');});}
 
@@ -1201,8 +1183,6 @@ function copyFollowUpReply(){
     addTimeline(name,'follow_up','主动跟进',followUpAiReplies[0]||'',text);
     renderDashboard();
   }
-  var aiOrig=followUpAiReplies[0]||'';
-  if(aiOrig)learnFromEdit(aiOrig,text,{stage:(clients[name]&&clients[name].stage)||'跟进',level:(clients[name]&&clients[name].level)||'B'});
   document.getElementById('modalSaveHint').style.display='block';
 }
 function regenFollowUp(){
@@ -1578,136 +1558,6 @@ async function genDailyFollowup(){
   }).join('');
 }
 
-// ===== 风格学习 =====
-function learnFromEdit(ai,mine,ctx){
-  if(!cfg.styleLog)cfg.styleLog=[];
-  cfg.styleLog.unshift({time:new Date().toISOString(),scene:ctx.stage||'',ai:ai,mine:mine,changed:ai.trim()!==mine.trim()});
-  if(cfg.styleLog.length>200)cfg.styleLog=cfg.styleLog.slice(0,200);
-  var changed=cfg.styleLog.filter(function(e){return e.changed;}).length;
-  if(changed>0&&changed%5===0)setTimeout(function(){analyzeStyle(true);},1000);
-  renderStyleLog();saveConfigToCloud();
-}
-async function analyzeStyle(silent){
-  var changed=(cfg.styleLog||[]).filter(function(e){return e.changed;});
-  if(changed.length<3){if(!silent)showToast('至少需要3条修改记录');return;}
-  if(!cfg.dsKey)return;
-  if(!silent)showToast('正在分析话术风格…');
-  var samples=changed.slice(0,20).map(function(s,i){return '样本'+(i+1)+':\nAI版：'+s.ai+'\n我的版：'+s.mine;}).join('\n\n');
-  try{
-    var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'分析销售人员话术风格，输出JSON。'},{role:'user',content:'分析以下修改记录，输出JSON：{"summary":"风格总结","traits":["特征1","特征2","特征3"],"tone":"语气","avoid":["避免1","避免2"],"advice":"给AI的优化提示词"}\n\n'+samples}],temperature:0.5,max_tokens:600})});
-    var data=await res.json();
-    var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'{}';
-    txt=txt.replace(/```json|```/g,'').trim();var m=txt.match(/\{[\s\S]*\}/);
-    if(m){cfg.styleProfile=JSON.parse(m[0]);saveConfigToCloud();renderStyleProfileDisplay();}
-    if(!silent)showToast('风格分析完成 ✓');
-  }catch(e){if(!silent)showToast('分析失败：'+e.message);}
-}
-function renderStyleProfileDisplay(){
-  var el=document.getElementById('styleProfileEl');if(!el)return;
-  var s=cfg.styleProfile;
-  if(!s){el.textContent='还没有足够样本…';return;}
-  el.innerHTML='<div style="font-weight:500;color:var(--text);margin-bottom:7px">'+(s.summary||'')+'</div>'+
-    '<div style="margin-bottom:5px">'+(s.traits||[]).map(function(t){return '<span class="tag tag-info" style="margin:2px">'+t+'</span>';}).join('')+'</div>'+
-    '<div style="font-size:12px;color:var(--text2)">语气：'+(s.tone||'')+'</div>'+
-    '<div style="font-size:12px;color:var(--text2);margin-top:2px">避免：'+(s.avoid||[]).join('、')+'</div>';
-}
-function renderStyleLog(){
-  var el=document.getElementById('styleLogEl');if(!el)return;
-  var logs=cfg.styleLog||[];
-  var t=document.getElementById('statTotal');var c=document.getElementById('statChanged');
-  if(t)t.textContent=logs.length;if(c)c.textContent=logs.filter(function(e){return e.changed;}).length;
-  renderStyleProfileDisplay();
-  if(!logs.length){el.innerHTML='<div class="empty">暂无记录</div>';return;}
-  el.innerHTML=logs.slice(0,40).map(function(log){
-    return '<div style="padding:8px 11px;border-left:2px solid '+(log.changed?'var(--accent)':'var(--border)')+';margin-bottom:6px;background:var(--bg3);border-radius:0 6px 6px 0">'+
-      '<div style="font-size:10px;color:var(--text3);margin-bottom:2px">'+new Date(log.time).toLocaleString()+' · '+log.scene+'</div>'+
-      (log.changed?'<div style="font-size:11px;color:var(--text3);text-decoration:line-through;margin-bottom:2px">'+log.ai.slice(0,55)+(log.ai.length>55?'…':'')+'</div><div style="font-size:11px;color:var(--text)">'+log.mine.slice(0,55)+(log.mine.length>55?'…':'')+'</div>':'<div style="font-size:11px;color:var(--text3)">直接采用了AI话术</div>')+
-    '</div>';
-  }).join('');
-}
-function clearStyleLog(){if(!confirm('确定清空所有学习记录？'))return;cfg.styleLog=[];cfg.styleProfile=null;saveConfigToCloud();renderStyleLog();}
-
-// ===== QA知识库 =====
-function renderQA(){
-  var searchEl=document.getElementById('qaSearch');var search=searchEl?searchEl.value.toLowerCase():'';
-  var list=document.getElementById('qaList');var countEl=document.getElementById('qaCount');if(!list)return;
-  var items=cfg.qaList||[];if(countEl)countEl.textContent=items.length;
-  var filtered=search?items.filter(function(q){return q.q.toLowerCase().includes(search)||q.a.toLowerCase().includes(search)||(q.tag||'').toLowerCase().includes(search);}):items;
-  if(!filtered.length){list.innerHTML='<div class="empty">'+(search?'没有找到相关问答':'暂无问答')+'</div>';return;}
-  var html='';
-  filtered.forEach(function(item){
-    var tagHtml=item.tag?'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(79,141,255,.12);color:var(--accent);border:1px solid rgba(79,141,255,.25);margin-left:5px">'+item.tag+'</span>':'';
-    html+='<div style="background:var(--bg3);border-radius:8px;padding:11px 13px;margin-bottom:7px;border:1px solid var(--border)">';
-    html+='<div style="display:flex;justify-content:space-between;margin-bottom:5px">';
-    html+='<div style="font-size:12px;font-weight:500;color:var(--text);line-height:1.5;flex:1">Q：'+item.q+tagHtml+'</div>';
-    html+='<div style="display:flex;gap:4px;margin-left:7px;flex-shrink:0">';
-    html+='<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 7px" data-id="'+item.id+'" onclick="editQAItem(this.getAttribute(\'data-id\'))">编辑</button>';
-    html+='<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 7px;color:var(--red)" data-id="'+item.id+'" onclick="deleteQAItem(this.getAttribute(\'data-id\'))">删除</button>';
-    html+='</div></div>';
-    html+='<div style="font-size:12px;color:var(--text2);line-height:1.7;background:var(--bg2);border-radius:6px;padding:7px 9px;border-left:3px solid var(--accent)">A：'+item.a+'</div>';
-    html+='</div>';
-  });
-  list.innerHTML=html;
-}
-function openQAForm(prefillQ,prefillA){
-  qaEditingId=null;
-  document.getElementById('qaFormTitle').textContent='新增问答';
-  document.getElementById('qaQ').value=prefillQ||'';
-  document.getElementById('qaA').value=prefillA||'';
-  document.getElementById('qaTag').value='';
-  document.getElementById('qaFormCard').style.display='block';
-  setTimeout(function(){document.getElementById('qaQ').focus();},100);
-}
-function closeQAForm(){document.getElementById('qaFormCard').style.display='none';qaEditingId=null;}
-async function saveQAItem(){
-  var q=document.getElementById('qaQ').value.trim();var a=document.getElementById('qaA').value.trim();var tag=document.getElementById('qaTag').value.trim();
-  if(!q||!a){showToast('问题和回复都不能为空');return;}
-  if(!cfg.qaList)cfg.qaList=[];
-  try{
-    if(qaEditingId){
-      await dbUpdate('qa_items','id=eq.'+qaEditingId,{question:q,answer:a,tag:tag,updated_at:new Date().toISOString()});
-      var idx=-1;cfg.qaList.forEach(function(item,i){if(item.id===qaEditingId)idx=i;});
-      if(idx!==-1)cfg.qaList[idx]={id:qaEditingId,q:q,a:a,tag:tag};
-      showToast('已更新 ✓');
-    }else{
-      var res=await dbInsert('qa_items',{user_id:currentUserId,question:q,answer:a,tag:tag});
-      var newId=res&&res[0]&&res[0].id||('qa_'+Date.now());
-      cfg.qaList.unshift({id:newId,q:q,a:a,tag:tag});
-      showToast('已添加 ✓');
-    }
-    syncQAToKnowledge();closeQAForm();renderQA();
-  }catch(e){showToast('保存失败：'+e.message);}
-}
-function editQAItem(id){
-  var item=null;(cfg.qaList||[]).forEach(function(i){if(i.id===id)item=i;});if(!item)return;
-  qaEditingId=id;
-  document.getElementById('qaFormTitle').textContent='编辑问答';
-  document.getElementById('qaQ').value=item.q;document.getElementById('qaA').value=item.a;document.getElementById('qaTag').value=item.tag||'';
-  document.getElementById('qaFormCard').style.display='block';document.getElementById('qaQ').focus();
-}
-async function deleteQAItem(id){
-  if(!confirm('确定删除？'))return;
-  try{await dbDelete('qa_items','id=eq.'+id);}catch(e){console.error(e);}
-  cfg.qaList=(cfg.qaList||[]).filter(function(i){return i.id!==id;});
-  syncQAToKnowledge();renderQA();showToast('已删除');
-}
-function syncQAToKnowledge(){
-  var base=cfg.knowledgeBase||'';var marker='\n\n===== 常见问答（自动同步）=====';
-  var cut=base.indexOf(marker);if(cut!==-1)base=base.slice(0,cut);
-  if(cfg.qaList&&cfg.qaList.length>0){cfg.knowledgeBase=base+marker+'\n'+cfg.qaList.map(function(item){return 'Q：'+item.q+'\nA：'+item.a;}).join('\n\n');}
-  else{cfg.knowledgeBase=base;}
-  var el=document.getElementById('knowledgeBase');if(el)el.value=cfg.knowledgeBase;
-}
-function saveReplyToQA(){
-  var reply=document.getElementById('editReply').value.trim();if(!reply){showToast('请先选择一条话术');return;}
-  var q='';
-  if(currentClient&&clients[currentClient]&&clients[currentClient].history){
-    var h=clients[currentClient].history;
-    for(var i=h.length-1;i>=0;i--){if(h[i].role==='user'){q=h[i].content;break;}}
-  }
-  switchTab('qa');openQAForm(q,reply);
-}
-
 // ===== 收尾总结 =====
 async function wrapUpClient(){
   var name=getClientName();if(!name){showToast('请先选择客户');return;}
@@ -1746,7 +1596,7 @@ function updateDataStats(){
   var el=document.getElementById('dataStats');if(!el)return;
   var vs=Object.values(clients);
   el.innerHTML='<div style="display:flex;gap:7px;flex-wrap:wrap">'+
-    [['总客户',vs.length,'var(--accent)'],['A级',vs.filter(function(c){return c.level==='A';}).length,'var(--red)'],['B级',vs.filter(function(c){return c.level==='B';}).length,'var(--amber)'],['C级',vs.filter(function(c){return c.level==='C';}).length,'var(--green)'],['QA条目',(cfg.qaList||[]).length,'#a78bfa'],['风格样本',(cfg.styleLog||[]).length,'var(--text2)']]
+    [['总客户',vs.length,'var(--accent)'],['A级',vs.filter(function(c){return c.level==='A';}).length,'var(--red)'],['B级',vs.filter(function(c){return c.level==='B';}).length,'var(--amber)'],['C级',vs.filter(function(c){return c.level==='C';}).length,'var(--green)']).length,'#a78bfa']).length,'var(--text2)']]
     .map(function(s){return '<div style="background:var(--bg3);border-radius:8px;padding:7px 11px;text-align:center"><div style="font-size:17px;font-weight:700;color:'+s[2]+'">'+s[1]+'</div><div style="font-size:10px;color:var(--text3);margin-top:1px">'+s[0]+'</div></div>';}).join('')+'</div>';
 }
 
@@ -1754,12 +1604,388 @@ function updateDataStats(){
 function showLoading(show){document.getElementById('loadingEl').style.display=show?'flex':'none';if(show)document.getElementById('resultEmpty').style.display='none';}
 function showToast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},3000);}
 
-// 直接启动，不需要登录
 currentUserId = '雷攀';
-document.getElementById('loginPage').style.display = 'none';
-document.getElementById('mainApp').style.display = 'block';
 document.getElementById('userBadge').textContent = currentUserId;
 loadFromCloud();
+
+
+// ===== CSV 导入同步 =====
+var csvParsedData = {}; // { name: [messages] }
+var csvContactSelected = {}; // { name: true/false }
+var csvRawFile = null;
+
+function onCsvDrop(e){
+  e.preventDefault();
+  document.getElementById('csvDropZone').style.borderColor='var(--border)';
+  var file = e.dataTransfer.files[0];
+  if(file && file.name.endsWith('.csv')) loadCsvFile(file);
+  else showToast('请拖入 .csv 文件');
+}
+function onCsvFileSelect(e){
+  var file = e.target.files[0];
+  if(file) loadCsvFile(file);
+}
+function loadCsvFile(file){
+  csvRawFile = file;
+  document.getElementById('csvFileInfo').style.display='block';
+  document.getElementById('csvFileInfo').textContent='📄 已选择：'+file.name+' ('+Math.round(file.size/1024)+'KB)';
+  document.getElementById('csvParseBtn').disabled=false;
+  document.getElementById('csvDropZone').style.borderColor='var(--green)';
+}
+
+function parseCsvFile(){
+  if(!csvRawFile){showToast('请先选择CSV文件');return;}
+  var days = parseInt(document.getElementById('csvDays').value)||3;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var raw = e.target.result;
+    // 尝试GBK解码
+    try{ raw = new TextDecoder('gbk').decode(new Uint8Array(e.target.result)); }
+    catch(ex){ raw = e.target.result; }
+    csvParsedData = parseCsvContent(raw, days);
+    showCsvContactList();
+  };
+  // 先尝试 ArrayBuffer 以支持 GBK
+  try{ reader.readAsArrayBuffer(csvRawFile); }
+  catch(ex){ reader.readAsText(csvRawFile, 'utf-8'); }
+}
+
+function parseCsvContent(raw, days){
+  // 如果是ArrayBuffer转来的Uint8Array，先decode
+  if(raw instanceof ArrayBuffer) raw = new TextDecoder('utf-8').decode(raw);
+  var SKIP_CONTENT = new Set(['[图片]','[语音]','[视频]','[文件]','[动画表情]']);
+  var SKIP_NAMES = new Set(['文件传输助手','微信团队','服务通知','我']);
+  var today = new Date(); today.setHours(23,59,59,999);
+  var cutoff = new Date(today); cutoff.setDate(cutoff.getDate() - days); cutoff.setHours(0,0,0,0);
+
+  var lines = raw.split('\n');
+  var headers = null;
+  var convs = {};
+
+  // 简单CSV解析（支持引号内换行）
+  var rows = [];
+  var cur = '';
+  var inQ = false;
+  for(var i=0;i<lines.length;i++){
+    var line = lines[i];
+    for(var j=0;j<line.length;j++){
+      var ch = line[j];
+      if(ch==='"'){ inQ=!inQ; cur+=ch; }
+      else { cur+=ch; }
+    }
+    if(!inQ){
+      rows.push(cur.replace(/\r/g,''));
+      cur='';
+    } else {
+      cur+='\n';
+    }
+  }
+
+  rows.forEach(function(row, ri){
+    if(!row.trim()) return;
+    // 解析CSV行
+    var fields=[]; var f=''; var q=false;
+    for(var k=0;k<row.length;k++){
+      var c=row[k];
+      if(c==='"'){
+        if(q&&row[k+1]==='"'){f+='"';k++;}
+        else q=!q;
+      } else if(c===','&&!q){
+        fields.push(f); f='';
+      } else { f+=c; }
+    }
+    fields.push(f);
+
+    if(ri===0){ headers=fields.map(function(h){return h.trim();}); return; }
+    if(!headers) return;
+
+    var get=function(keys){ for(var ki=0;ki<keys.length;ki++){var idx=headers.indexOf(keys[ki]);if(idx>=0&&fields[idx]!==undefined)return fields[idx].trim();} return ''; };
+    var contact = get(['NickName','nickName']);
+    if(!contact||SKIP_NAMES.has(contact)) return;
+    var content = get(['StrContent','strContent']).replace(/\s+/g,' ').trim();
+    if(!content||content.startsWith('<?xml')||content.startsWith('<msg')) return;
+    if(SKIP_CONTENT.has(content)||content.includes('撤回了一条消息')) return;
+
+    var timeStr = get(['StrTime','strTime']);
+    var msgTime = null;
+    var fmts=[
+      [/^(\d{4})\/(\d{1,2})\/(\d{1,2}) (\d{1,2}):(\d{2})$/,function(m){return new Date(m[1],m[2]-1,m[3],m[4],m[5]);}],
+      [/^(\d{4})-(\d{1,2})-(\d{1,2}) (\d{1,2}):(\d{2}):(\d{2})$/,function(m){return new Date(m[1],m[2]-1,m[3],m[4],m[5],m[6]);}],
+      [/^(\d{4})-(\d{1,2})-(\d{1,2}) (\d{1,2}):(\d{2})$/,function(m){return new Date(m[1],m[2]-1,m[3],m[4],m[5]);}],
+      [/^(\d{4})\/(\d{1,2})\/(\d{1,2}) (\d{1,2}):(\d{2}):(\d{2})$/,function(m){return new Date(m[1],m[2]-1,m[3],m[4],m[5],m[6]);}],
+    ];
+    for(var fi=0;fi<fmts.length;fi++){
+      var m=timeStr.match(fmts[fi][0]);
+      if(m){msgTime=fmts[fi][1](m);break;}
+    }
+    if(!msgTime) return;
+    if(msgTime<cutoff||msgTime>today) return;
+
+    var isSender = get(['IsSender','isSender'])==='1';
+    if(!convs[contact]) convs[contact]=[];
+    convs[contact].push({time:msgTime,role:isSender?'我':'客户',content:content});
+  });
+
+  // 排序
+  Object.keys(convs).forEach(function(n){ convs[n].sort(function(a,b){return a.time-b.time;}); });
+  return convs;
+}
+
+function showCsvContactList(){
+  var names = Object.keys(csvParsedData);
+  if(!names.length){ showToast('该时间范围内没有找到消息'); return; }
+
+  // 默认全选，但排除已在excluded列表里的
+  var excluded = loadExcludedSet();
+  csvContactSelected = {};
+  names.forEach(function(n){ csvContactSelected[n] = !excluded.has(n); });
+
+  document.getElementById('csvContactCount').textContent = names.length;
+  document.getElementById('csvFilterCard').style.display='block';
+  renderCsvContactList();
+  document.getElementById('csvFilterCard').scrollIntoView({behavior:'smooth'});
+}
+
+function loadExcludedSet(){
+  try{ var s=localStorage.getItem('csv_excluded_'+currentUserId); return new Set(s?JSON.parse(s):[]); }
+  catch(e){ return new Set(); }
+}
+function saveExcludedSet(set){
+  try{ localStorage.setItem('csv_excluded_'+currentUserId, JSON.stringify(Array.from(set))); }catch(e){}
+}
+
+function renderCsvContactList(){
+  var search=(document.getElementById('csvContactSearch').value||'').toLowerCase();
+  var names=Object.keys(csvParsedData).filter(function(n){return !search||n.toLowerCase().includes(search);});
+  // 排序：已有客户放前面，新客户后面
+  names.sort(function(a,b){
+    var ea=clients[a]?1:0, eb=clients[b]?1:0;
+    if(ea!==eb) return eb-ea;
+    return a.localeCompare(b);
+  });
+  var el=document.getElementById('csvContactList');
+  el.innerHTML=names.map(function(name){
+    var msgs=csvParsedData[name]||[];
+    var checked=csvContactSelected[name]!==false;
+    var existing=clients[name];
+    var lc=existing?levelConfig(existing.level||'C'):null;
+    var lastMsg=msgs[msgs.length-1];
+    var lastCustomer=msgs.slice().reverse().find(function(m){return m.role==='客户';});
+    var preview=lastCustomer?lastCustomer.content.slice(0,30)+'…':'（仅我方消息）';
+    var timeStr=lastMsg?(lastMsg.time.getMonth()+1)+'/'+(lastMsg.time.getDate()):'';
+    return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);border-radius:8px;border:1px solid '+(checked?'rgba(79,141,255,.3)':'var(--border)')+';cursor:pointer">'+
+      '<input type="checkbox" '+(checked?'checked':'')+' onchange="csvContactSelected[\''+name.replace(/'/g,"\\'")+'\']=this.checked;renderCsvContactList()" style="width:14px;height:14px;accent-color:var(--accent)">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="display:flex;align-items:center;gap:5px">'+
+          '<span style="font-weight:500;font-size:13px">'+name+'</span>'+
+          (lc?'<span class="tag '+lc.cls+'" style="font-size:10px">'+lc.label+'</span>':'<span style="font-size:10px;color:var(--text3)">新客户</span>')+
+          '<span style="font-size:10px;color:var(--text3)">'+msgs.length+'条 · '+timeStr+'</span>'+
+        '</div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-top:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+preview+'</div>'+
+      '</div>'+
+    '</label>';
+  }).join('');
+}
+
+function csvSelectAll(val){
+  Object.keys(csvContactSelected).forEach(function(n){ csvContactSelected[n]=val; });
+  renderCsvContactList();
+}
+
+async function startCsvSync(){
+  var toSync=Object.keys(csvContactSelected).filter(function(n){return csvContactSelected[n];});
+  if(!toSync.length){showToast('请至少选择一个客户');return;}
+  if(!cfg.dsKey){showToast('请先在配置页填写 API Key');return;}
+
+  // 保存取消勾选的到排除列表
+  var excluded=loadExcludedSet();
+  Object.keys(csvContactSelected).forEach(function(n){
+    if(!csvContactSelected[n]) excluded.add(n);
+    else excluded.delete(n);
+  });
+  saveExcludedSet(excluded);
+
+  document.getElementById('csvSyncBtn').disabled=true;
+  document.getElementById('csvProgressCard').style.display='block';
+  document.getElementById('csvDoneCard').style.display='none';
+  document.getElementById('csvProgressCard').scrollIntoView({behavior:'smooth'});
+
+  var log=document.getElementById('csvProgressLog');
+  log.innerHTML='';
+  var addLog=function(msg,color){
+    var line=document.createElement('div');
+    line.style.color=color||'var(--text2)';
+    line.textContent=msg;
+    log.appendChild(line);
+    log.scrollTop=log.scrollHeight;
+  };
+
+  var success=0,failed=0,skipped=0;
+  var today=new Date().toISOString().slice(0,10);
+
+  for(var i=0;i<toSync.length;i++){
+    var name=toSync[i];
+    var messages=csvParsedData[name]||[];
+    var existing=clients[name]||null;
+
+    document.getElementById('csvProgressText').textContent='正在处理：'+name;
+    document.getElementById('csvProgressNum').textContent=(i+1)+' / '+toSync.length;
+    document.getElementById('csvProgressBar').style.width=Math.round((i+1)/toSync.length*100)+'%';
+
+    addLog('['+( i+1)+'/'+toSync.length+'] '+name+'（'+messages.length+'条）'+(existing?' · 现等级：'+existing.level:'· 新客户'));
+
+    // AI 分析
+    var aiResult=null;
+    try{
+      var dialog=messages.map(function(m){return m.role+'：'+m.content;}).join('\n');
+      var existingInfo='';
+      if(existing){
+        existingInfo='\n已有档案：'+existing.level+'级，痛点：'+(existing.pain||'')+'，阶段：'+(existing.stage||'')+'\n';
+        var hist=(existing.history||[]).slice(-15);
+        if(hist.length) existingInfo+='\n历史对话：\n'+hist.map(function(h){return(h.role==='user'?'客户':'我')+'：'+(h.content||'');}).join('\n')+'\n';
+      }
+      var userMsg='客户【'+name+'】'+existingInfo+'\n今日新对话：\n'+dialog+'\n\n输出JSON：\n{"level":"Aplus/A/B/C/done之一","sub_type":"准成交/强兴趣/有兴趣/了解中/已成交","pain":"核心痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标签1","标签2","标签3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","open_date":"开业时间没有则空","fuzzy_time":"模糊时间原话没有则空"}';
+      var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL,messages:[{role:'system',content:buildSyncPrompt()},{role:'user',content:userMsg}],temperature:0.4,max_tokens:600})});
+      var data=await res.json();
+      var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+      txt=txt.replace(/```json|```/g,'').trim();
+      var mm=txt.match(/\{[\s\S]*\}/);
+      if(mm) aiResult=JSON.parse(mm[0]);
+      if(aiResult) addLog('  ✓ AI: '+aiResult.level+'级 · '+(aiResult.pain||'').slice(0,24),'var(--green)');
+    }catch(ex){
+      addLog('  ⚠ AI分析失败：'+ex.message,'var(--amber)');
+    }
+
+    // 合并历史
+    try{
+      var newHist=messages.map(function(m){return{role:m.role==='客户'?'user':'assistant',content:m.content,replyUsed:m.role==='我'?m.content:null,time:m.time.toISOString()};});
+      var oldHist=(existing&&existing.history)||[];
+      var oldKeys=new Set(oldHist.map(function(h){return h.content+':'+(h.time||'').slice(0,10);}));
+      var merged=oldHist.concat(newHist.filter(function(h){return !oldKeys.has(h.content+':'+h.time.slice(0,10));}));
+
+      var ai=aiResult||{};
+      var level=ai.level||(existing&&existing.level)||'C';
+      var openDate=ai.open_date||(existing&&existing.openDate)||'';
+      var fuzzyTime=ai.fuzzy_time||'';
+      var followDays=ai.follow_days||2;
+      var lastContact=messages[messages.length-1].time.toISOString().slice(0,10);
+
+      // 客户有没有回复 → 决定 follow_count
+      var customerReplied=messages.some(function(m){return m.role==='客户';});
+      var followCount=customerReplied?0:((existing&&existing.followCount)||0)+1;
+
+      // 计算跟进时间
+      var todayD=new Date(today);
+      var nextFollow=calcNextFollow(level,followDays,new Date(lastContact),openDate,todayD,fuzzyTime?parseFuzzyTime(fuzzyTime,todayD):'');
+
+      var row={
+        user_id:currentUserId,name:name,
+        level:level,
+        sub_type:ai.sub_type||(existing&&existing.subType)||'',
+        pain:ai.pain||(existing&&existing.pain)||'',
+        stage:ai.stage||(existing&&existing.stage)||'初识',
+        follow_days:followDays,
+        summary:ai.summary||(existing&&existing.summary)||'',
+        tags:ai.tags||(existing&&existing.tags)||[],
+        wx_group:ai.wx_group||(existing&&existing.wxGroup)||'',
+        open_date:openDate,
+        fuzzy_time:fuzzyTime,
+        history:merged,
+        last_contact:lastContact,
+        next_follow:nextFollow,
+        follow_count:followCount,
+        shop_tags:(existing&&existing.shopTags)||[],
+        sub_type:ai.sub_type||(existing&&existing.subType)||'',
+        done_date:(existing&&existing.doneDate)||'',
+        after_sale_step:(existing&&existing.afterSaleStep)||0,
+        updated_at:new Date().toISOString()
+      };
+      if(level==='done'&&!row.done_date){row.done_date=today;row.after_sale_step=0;}
+      if(existing&&existing._dbId) row.id=existing._dbId;
+
+      await dbUpsert('clients',row);
+
+      // 更新本地
+      clients[name]=Object.assign({},existing||{},{
+        level:row.level,subType:row.sub_type,pain:row.pain,stage:row.stage,
+        follow_days:row.follow_days,summary:row.summary,tags:row.tags,
+        wxGroup:row.wx_group,openDate:row.open_date,fuzzyTime:row.fuzzy_time,
+        history:merged,lastContact:row.last_contact,nextFollow:row.next_follow,
+        followCount:row.follow_count,shopTags:row.shop_tags,
+        doneDate:row.done_date,afterSaleStep:row.after_sale_step,
+        _dbId:existing&&existing._dbId
+      });
+
+      addLog('  ☁ 已同步，下次跟进：'+nextFollow,'var(--accent)');
+      success++;
+    }catch(ex){
+      addLog('  ✗ 写入失败：'+ex.message,'var(--red)');
+      failed++;
+    }
+
+    // 时间轴
+    try{
+      await dbInsert('follow_timeline',{user_id:currentUserId,client_name:name,action_type:'auto_sync',content:'CSV导入 '+messages.length+'条',ai_reply:'',my_reply:'',level:(clients[name]&&clients[name].level)||'',stage:(clients[name]&&clients[name].stage)||''});
+    }catch(e){}
+
+    if(i<toSync.length-1) await new Promise(function(r){setTimeout(r,400);});
+  }
+
+  // 沉默处理
+  addLog('');
+  addLog('检查沉默过期客户…','var(--text3)');
+  var syncedNames=new Set(toSync);
+  var silentCount=0;
+  for(var sn in clients){
+    if(syncedNames.has(sn)) continue;
+    var sc=clients[sn];
+    if(sc.level==='done') continue;
+    if(sc.nextFollow&&sc.nextFollow>today) continue;
+    var newFc=(sc.followCount||0)+1;
+    var silenceGaps=[0,3,5,7];
+    var silenceGap=silenceGaps[Math.min(newFc,3)];
+    var nd2=new Date(today);nd2.setDate(nd2.getDate()+silenceGap);
+    var nf2=nd2.toISOString().slice(0,10);
+    var LEVEL_DOWN={'Aplus':'A','A':'B','B':'C','C':'C'};
+    var newLevel2=newFc>=3?LEVEL_DOWN[sc.level]||sc.level:sc.level;
+    clients[sn].followCount=newFc;
+    clients[sn].nextFollow=nf2;
+    clients[sn].level=newLevel2;
+    try{
+      await dbUpsert('clients',{id:sc._dbId,user_id:currentUserId,name:sn,follow_count:newFc,next_follow:nf2,level:newLevel2,updated_at:new Date().toISOString()});
+      silentCount++;
+    }catch(e){}
+  }
+  if(silentCount) addLog('沉默处理：'+silentCount+'个客户已更新间隔','var(--text3)');
+
+  document.getElementById('csvProgressText').textContent='完成';
+  document.getElementById('csvProgressBar').style.width='100%';
+  document.getElementById('csvDoneCard').style.display='block';
+  document.getElementById('csvDoneText').textContent='同步完成！成功 '+success+' 个'+(failed?' · 失败 '+failed+' 个':'');
+  document.getElementById('csvDoneSub').textContent='已处理 '+toSync.length+' 个客户，沉默更新 '+silentCount+' 个';
+  document.getElementById('csvSyncBtn').disabled=false;
+
+  renderAll();
+  showToast('导入完成 ✓ 成功'+success+'个');
+}
+
+function buildSyncPrompt(){
+  return `你是云e宝服装管理系统顶级销售分析专家。根据对话记录判断客户状态，严格按JSON格式输出，不输出其他内容。
+
+【等级判断严格标准】
+Aplus=准成交：主动问快递时效/付款方式/能否走平台/问合同发票/明确说今天明天回复
+❌不能判Aplus：只说"考虑一下"无时间/礼貌结束对话/嫌贵/客户未回我最后一条
+
+A=强兴趣：问优惠/活动/试用演示/具体价格/对比竞品
+❌不能判A：只问功能/态度冷淡只回嗯哦
+
+B=有兴趣：咨询功能细节但没问价格
+C=了解中：刚接触/闲聊/被动回复
+done=已成交：出现付款/转账/下单/打款/收到货（不能猜测）
+
+⚠️宁可低判不高判`;
+}
+
 
 </script>
 </body>
