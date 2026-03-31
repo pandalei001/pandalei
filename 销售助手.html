@@ -469,11 +469,6 @@ var currentAiData=null;
 var followUpAiReplies=[];
 var followUpClient='';
 
-  currentUserId=uid;
-  document.getElementById('userBadge').textContent=uid;
-  loadFromCloud();
-}
-
 // ===== 云端同步 =====
 function setSyncStatus(status){
   var b=document.getElementById('syncBadge');
@@ -509,9 +504,7 @@ async function loadFromCloud(){
         _dbId:row.id,_createdAt:(row.created_at||'').slice(0,10)
       };
     });
-    // 加载QA
-    var qaRows=await dbSelect('qa_items','user_id=eq.'+encodeURIComponent(currentUserId)+'&select=*&order=created_at.desc');
-    });
+
     setSyncStatus('ok');
     syncSettingsUI();
     renderAll();
