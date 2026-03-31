@@ -1647,16 +1647,32 @@ function parseCsvFile(){
   var days = parseInt(document.getElementById('csvDays').value)||3;
   var reader = new FileReader();
   reader.onload = function(e){
-    var raw = e.target.result;
-    // 尝试GBK解码
-    try{ raw = new TextDecoder('gbk').decode(new Uint8Array(e.target.result)); }
-    catch(ex){ raw = e.target.result; }
+    var buf = e.target.result;
+    var raw = '';
+    // 优先尝试 UTF-8，失败再尝试 GBK，最后尝试 GB2312
+    var encodings = ['utf-8', 'gbk', 'gb2312'];
+    for(var ei = 0; ei < encodings.length; ei++){
+      try{
+        var decoded = new TextDecoder(encodings[ei], {fatal: true}).decode(buf);
+        // 检查是否有明显乱码（UTF-8解码GBK会出现大量替换字符或乱码特征）
+        if(decoded.indexOf('�') === -1 || ei === encodings.length - 1){
+          raw = decoded;
+          break;
+        }
+      }catch(ex){
+        // 该编码解码失败，继续尝试下一个
+        continue;
+      }
+    }
+    if(!raw){ showToast('CSV编码识别失败，请确认文件格式'); return; }
+    // 调试：显示前两行看列名
+    var firstLines = raw.split('\n').slice(0,2);
+    console.log('CSV前两行:', firstLines);
+    showToast('CSV已读取，列名：' + firstLines[0].slice(0,80));
     csvParsedData = parseCsvContent(raw, days);
     showCsvContactList();
   };
-  // 先尝试 ArrayBuffer 以支持 GBK
-  try{ reader.readAsArrayBuffer(csvRawFile); }
-  catch(ex){ reader.readAsText(csvRawFile, 'utf-8'); }
+  reader.readAsArrayBuffer(csvRawFile);
 }
 
 function parseCsvContent(raw, days){
