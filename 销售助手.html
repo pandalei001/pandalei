@@ -347,7 +347,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
     <div>
       <div class="card">
         <div class="card-title"><span class="dot"></span>基础配置</div>
-        <div class="setting-group"><div class="setting-label">AI API Key（allapi.store 的 Key）</div><input type="password" id="dsKey" placeholder="sk-G9C1..."><div class="setting-hint">填入你的中转站 API Key</div></div>
+        <div class="setting-group"><div class="setting-label">AI API Key（DeepSeek 官方 Key）</div><input type="password" id="dsKey" placeholder="sk-G9C1..."><div class="setting-hint">填入你的 DeepSeek API Key（sk-...）</div></div>
         <div class="setting-group"><div class="setting-label">我的微信名（用于识别聊天记录）</div><input type="text" id="myWxName" placeholder="如：云e宝 雷攀（推荐有好礼）"></div>
         <button class="btn btn-primary btn-sm" onclick="saveSettings()">保存</button>
       </div>
@@ -420,13 +420,13 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
 // ===== API 配置 =====
 // 切换平台只改下面三行：AI_API_URL / AI_API_KEY(配置页填) / AI_MODEL
 //
-// allapi.store 中转（当前）：AI_MODEL = 'claude-sonnet-4-6'
+// allapi.store 中转（当前）：AI_MODEL = 'deepseek-chat'
 // DeepSeek 官方：  AI_API_URL='https://api.deepseek.com/chat/completions'  AI_MODEL='deepseek-chat'
 // Gemini 中转：    AI_MODEL = 'gemini-2.5-pro'  或  'gemini-2.0-flash'
 // GPT 中转：       AI_MODEL = 'gpt-4.1-mini'   或  'gpt-5'
 //
-var AI_API_URL = 'https://allapi.store/v1/chat/completions';
-var AI_MODEL   = 'claude-sonnet-4-6';
+var AI_API_URL = 'https://api.deepseek.com/chat/completions';
+var AI_MODEL   = 'deepseek-chat';
 
 // ===== Supabase 配置 =====
 var SUPA_URL = 'https://lnvpbyirhepsimocmywt.supabase.co';
@@ -819,7 +819,7 @@ async function callAI(userMsg,history,analysisOnly){
 async function callAIFree(question){
   if(!cfg.dsKey){showToast('请先填写API Key');return null;}
   var kb=cfg.knowledgeBase||'';
-  var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是云e宝服装管理系统顶级销售顾问，20年经验。'+(kb?'\n产品背景：\n'+kb.slice(0,600):'')+'直接回答销售问题，给出可直接使用的话术，纯文本回复。'},{role:'user',content:question}],temperature:0.8,max_tokens:1000})});
+  var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你是云e宝服装管理系统顶级销售顾问，20年经验。'+(kb?'\n产品背景：\n'+kb.slice(0,600):'')+'直接回答销售问题，给出可直接使用的话术，纯文本回复。'},{role:'user',content:question}],temperature:0.8,max_tokens:1000})});
   if(!res.ok){var t=await res.text();throw new Error('HTTP '+res.status);}
   var data=await res.json();
   return(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
@@ -1068,7 +1068,7 @@ async function regenReply(){
   var btn=event.target;btn.disabled=true;btn.textContent='生成中…';
   try{
     var clientInfo=name&&clients[name]?'客户情况：'+clients[name].level+'级，'+clients[name].stage+'，痛点：'+clients[name].pain+'\n\n':'';
-    var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是资深销售顾问，擅长写自然口语化的话术，说话像朋友不像销售员。'},{role:'user',content:'原话术：\n'+original+'\n\n修改要求：'+hint+'\n\n'+clientInfo+'根据修改要求重新生成3条话术，自然口语化。\n只输出JSON：{"replies":["话术1","话术2","话术3"]}'}],temperature:0.85,max_tokens:600})});
+    var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你是资深销售顾问，擅长写自然口语化的话术，说话像朋友不像销售员。'},{role:'user',content:'原话术：\n'+original+'\n\n修改要求：'+hint+'\n\n'+clientInfo+'根据修改要求重新生成3条话术，自然口语化。\n只输出JSON：{"replies":["话术1","话术2","话术3"]}'}],temperature:0.85,max_tokens:600})});
     var data=await res.json();
     var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
     txt=txt.replace(/```json|```/g,'').trim();var m=txt.match(/\{[\s\S]*\}/);
@@ -1139,7 +1139,7 @@ function loadFollowUpReplies(name){
     +'\n\n本次话术策略：'+strategy
     +'\n\n铁律：不说催促词，不连续两个问题，语气像朋友发微信'+(cfg.knowledgeBase?'\\n产品知识：'+cfg.knowledgeBase.slice(0,500):'')
     +'\\n\\n本次策略：'+strategy+'\\n\\n铁律：不说销售腔，不催促，不连续两个问题'
-  fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:sysMsg},{role:'user',content:parts.join('\n')}],temperature:0.85,max_tokens:600})})
+  fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:sysMsg},{role:'user',content:parts.join('\n')}],temperature:0.85,max_tokens:600})})
   .then(function(res){if(!res.ok)return res.text().then(function(t){throw new Error('HTTP '+res.status+': '+t.slice(0,60));});return res.json();})
   .then(function(data){
     var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
@@ -1195,7 +1195,7 @@ function startAfterSaleFollowUp(name,action){
   var sys='\u4f60\u662f\u4e91e\u5b9d\u552e\u540e\u670d\u52a1\u4eba\u5458\uff0c\u8bf4\u8bdd\u81ea\u7136\u50cf\u670b\u53cb\u3002'+(kb?'\n\u4ea7\u54c1\uff1a'+kb.slice(0,300):'');
   var usr='\u5ba2\u6237\u3010'+name+'\u3011\u5df2\u6210\u4ea4'+ds+'\u5929\u3002\u672c\u6b21\u552e\u540e\u52a8\u4f5c\uff1a'+action+'\u3002\n\u751f\u6210\u4e00\u6761\u81ea\u7136\u8ddf\u8fdb\u8bdd\u672f\uff0840\u5b57\u5185\uff0c\u50cf\u670b\u53cb\u53d1\u5fae\u4fe1\uff09\u3002\n\u53ea\u8f93\u51fa\u8bdd\u672f\u6587\u5b57\u3002';
   showToast('\u751f\u6210\u552e\u540e\u8bdd\u672f\u4e2d\u2026');
-  fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.8,max_tokens:150})})
+  fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:0.8,max_tokens:150})})
   .then(function(r){return r.json();})
   .then(function(data){
     var sc=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
@@ -1535,7 +1535,7 @@ async function genDailyFollowup(){
   for(var i=0;i<toFollow.length;i++){
     var name=toFollow[i][0];var c=toFollow[i][1];
     try{
-      var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是资深销售顾问，说话像朋友，不说销售腔。禁止用"临门一脚""把握机会"。'},{role:'user',content:'客户【'+name+'】'+c.level+'级，痛点：'+c.pain+'，阶段：'+c.stage+'，摘要：'+c.summary+'。\n生成一条今天主动联系的开场话术：像朋友发微信，从客户关心的事切入，不直接谈产品，40字以内。\n只输出话术文字。'}],temperature:0.8,max_tokens:150})});
+      var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你是资深销售顾问，说话像朋友，不说销售腔。禁止用"临门一脚""把握机会"。'},{role:'user',content:'客户【'+name+'】'+c.level+'级，痛点：'+c.pain+'，阶段：'+c.stage+'，摘要：'+c.summary+'。\n生成一条今天主动联系的开场话术：像朋友发微信，从客户关心的事切入，不直接谈产品，40字以内。\n只输出话术文字。'}],temperature:0.8,max_tokens:150})});
       var data=await res.json();results.push({name:name,c:c,script:(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||''});
     }catch(e){results.push({name:name,c:c,script:'（生成失败）'});}
   }
@@ -1560,7 +1560,7 @@ async function wrapUpClient(){
   var btn=event.target;btn.disabled=true;btn.textContent='总结中…';
   var histTxt=history.slice(-20).map(function(h){return(h.role==='user'?'客户':'我')+'：'+h.content;}).join('\n');
   try{
-    var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',messages:[{role:'system',content:'你是销售顾问，分析对话，输出JSON：{"status":"客户现状","level":"A/B/C","key_concern":"核心顾虑","next_action":"下一步行动","next_script":"跟进话术60字内","follow_days":2}'},{role:'user',content:'分析客户【'+name+'】的对话：\n\n'+histTxt}],temperature:0.5,max_tokens:500})});
+    var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你是销售顾问，分析对话，输出JSON：{"status":"客户现状","level":"A/B/C","key_concern":"核心顾虑","next_action":"下一步行动","next_script":"跟进话术60字内","follow_days":2}'},{role:'user',content:'分析客户【'+name+'】的对话：\n\n'+histTxt}],temperature:0.5,max_tokens:500})});
     var data=await res.json();
     var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'{}';
     txt=txt.replace(/```json|```/g,'').trim();var m=txt.match(/\{[\s\S]*\}/);if(!m)throw new Error('格式错误');
@@ -1868,19 +1868,29 @@ async function startCsvSync(){
       }
       var userMsg='客户【'+name+'】'+existingInfo+'\n今日新对话：\n'+dialog+'\n\n输出JSON：\n{"level":"Aplus/A/B/C/done之一","sub_type":"准成交/强兴趣/有兴趣/了解中/已成交","pain":"核心痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标签1","标签2","标签3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","open_date":"开业时间没有则空","fuzzy_time":"模糊时间原话没有则空"}';
       var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL,messages:[{role:'system',content:buildSyncPrompt()},{role:'user',content:userMsg}],temperature:0.4,max_tokens:1000})});
+      if(!res.ok){var errTxt=await res.text();addLog('  ✗ API错误 HTTP '+res.status+'：'+errTxt.slice(0,120),'var(--red)');throw new Error('HTTP '+res.status);}
       var data=await res.json();
+      if(data.error){addLog('  ✗ API返回错误：'+(data.error.message||JSON.stringify(data.error)).slice(0,120),'var(--red)');throw new Error(data.error.message||'API error');}
       var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+      addLog('  → 原始返回：'+txt.slice(0,100),'var(--text3)');
       txt=txt.replace(/```json|```/g,'').trim();
       var mm=txt.match(/\{[\s\S]*\}/);
       if(mm) aiResult=JSON.parse(mm[0]);
-      if(aiResult) addLog('  ✓ AI: '+aiResult.level+'级 · '+(aiResult.pain||'').slice(0,24),'var(--green)');
+      if(aiResult){
+        addLog('  ✓ AI: '+aiResult.level+'级 · '+(aiResult.pain||'(无痛点)').slice(0,24),'var(--green)');
+        addLog('    摘要：'+(aiResult.summary||'(空)'),'var(--text3)');
+        addLog('    标签：'+((aiResult.tags||[]).join('、')||'(空)'),'var(--text3)');
+      } else {
+        addLog('  ⚠ JSON解析失败，原文：'+txt.slice(0,120),'var(--amber)');
+      }
     }catch(ex){
       addLog('  ⚠ AI分析失败：'+ex.message,'var(--amber)');
     }
 
     // 合并历史
     try{
-      var newHist=messages.map(function(m){return{role:m.role==='客户'?'user':'assistant',content:m.content,replyUsed:m.role==='我'?m.content:null,time:m.time.toISOString()};});
+      if(!messages.length){addLog('  ⚠ 无新消息，跳过写入','var(--amber)');skipped++;continue;}
+      var newHist=messages.map(function(m){return{role:m.role==='客户'?'user':'assistant',content:m.content,replyUsed:m.role==='我'?m.content:null,time:m.time instanceof Date?m.time.toISOString():m.time};});
       var oldHist=(existing&&existing.history)||[];
       var oldKeys=new Set(oldHist.map(function(h){return h.content+':'+(h.time||'').slice(0,10);}));
       var merged=oldHist.concat(newHist.filter(function(h){return !oldKeys.has(h.content+':'+h.time.slice(0,10));}));
@@ -1890,7 +1900,8 @@ async function startCsvSync(){
       var openDate=ai.open_date||(existing&&existing.openDate)||'';
       var fuzzyTime=ai.fuzzy_time||'';
       var followDays=ai.follow_days||2;
-      var lastContact=messages[messages.length-1].time.toISOString().slice(0,10);
+      var lastTime=messages[messages.length-1].time;
+      var lastContact=lastTime instanceof Date?lastTime.toISOString().slice(0,10):String(lastTime).slice(0,10);
 
       // 客户有没有回复 → 决定 follow_count
       var customerReplied=messages.some(function(m){return m.role==='客户';});
@@ -1941,7 +1952,7 @@ async function startCsvSync(){
       addLog('  ☁ 已同步，下次跟进：'+nextFollow,'var(--accent)');
       success++;
     }catch(ex){
-      addLog('  ✗ 写入失败：'+ex.message,'var(--red)');
+      addLog('  ✗ 写入失败（'+ex.message+'）','var(--red)');
       failed++;
     }
 
