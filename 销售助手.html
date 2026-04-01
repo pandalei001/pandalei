@@ -1859,14 +1859,15 @@ async function startCsvSync(){
     var aiResult=null;
     try{
       var dialog=messages.map(function(m){return m.role+'：'+m.content;}).join('\n');
+      if(dialog.length>2000) dialog=dialog.slice(0,2000)+'…（已截断）';
       var existingInfo='';
       if(existing){
         existingInfo='\n已有档案：'+existing.level+'级，痛点：'+(existing.pain||'')+'，阶段：'+(existing.stage||'')+'\n';
-        var hist=(existing.history||[]).slice(-15);
-        if(hist.length) existingInfo+='\n历史对话：\n'+hist.map(function(h){return(h.role==='user'?'客户':'我')+'：'+(h.content||'');}).join('\n')+'\n';
+        var hist=(existing.history||[]).slice(-20);
+        if(hist.length){var histTxt=hist.map(function(h){return(h.role==='user'?'客户':'我')+'：'+(h.content||'').slice(0,120);}).join('\n');if(histTxt.length>3000)histTxt=histTxt.slice(-3000);existingInfo+='\n历史对话（最近'+hist.length+'条）：\n'+histTxt+'\n';}
       }
       var userMsg='客户【'+name+'】'+existingInfo+'\n今日新对话：\n'+dialog+'\n\n输出JSON：\n{"level":"Aplus/A/B/C/done之一","sub_type":"准成交/强兴趣/有兴趣/了解中/已成交","pain":"核心痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标签1","标签2","标签3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","open_date":"开业时间没有则空","fuzzy_time":"模糊时间原话没有则空"}';
-      var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL,messages:[{role:'system',content:buildSyncPrompt()},{role:'user',content:userMsg}],temperature:0.4,max_tokens:600})});
+      var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL,messages:[{role:'system',content:buildSyncPrompt()},{role:'user',content:userMsg}],temperature:0.4,max_tokens:1000})});
       var data=await res.json();
       var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
       txt=txt.replace(/```json|```/g,'').trim();
