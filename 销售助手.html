@@ -1665,10 +1665,6 @@ function parseCsvFile(){
       }
     }
     if(!raw){ showToast('CSV编码识别失败，请确认文件格式'); return; }
-    // 调试：显示前两行看列名
-    var firstLines = raw.split('\n').slice(0,2);
-    console.log('CSV前两行:', firstLines);
-    showToast('CSV已读取，列名：' + firstLines[0].slice(0,80));
     csvParsedData = parseCsvContent(raw, days);
     showCsvContactList();
   };
