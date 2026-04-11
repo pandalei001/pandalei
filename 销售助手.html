@@ -43,9 +43,11 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
 .tag-Aplus{background:rgba(220,20,20,.25);color:#ff2020;border:1px solid rgba(220,20,20,.5);font-weight:700;}
 .tag-done{background:rgba(79,141,255,.2);color:var(--accent);border:1px solid rgba(79,141,255,.4);}
 .tag-referral{background:rgba(124,92,252,.2);color:#a78bfa;border:1px solid rgba(124,92,252,.4);}
+.tag-lost{background:rgba(120,120,120,.2);color:#999;border:1px solid rgba(120,120,120,.4);}
 .tag-Aplus{background:rgba(220,20,20,.25);color:#ff2020;border:1px solid rgba(220,20,20,.5);font-weight:700;}
 .tag-done{background:rgba(79,141,255,.2);color:var(--accent);border:1px solid rgba(79,141,255,.4);}
 .tag-referral{background:rgba(124,92,252,.2);color:#a78bfa;border:1px solid rgba(124,92,252,.4);}
+.tag-lost{background:rgba(120,120,120,.2);color:#999;border:1px solid rgba(120,120,120,.4);}
 .tag-info{background:rgba(79,141,255,.15);color:var(--accent);border:1px solid rgba(79,141,255,.3);}
 .reply-option{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:6px;cursor:pointer;transition:all .2s;position:relative;}
 .reply-option:hover{border-color:var(--accent);}.reply-option.selected{border-color:var(--accent);background:rgba(79,141,255,.06);}
@@ -97,7 +99,6 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
   <div class="logo">云e宝</div>
   <div class="tabs">
     <div class="tab active" onclick="switchTab('dashboard')">🏠 今日看板</div>
-    <div class="tab" onclick="switchTab('chat')">💬 话术助手</div>
     <div class="tab" onclick="switchTab('clients')">👥 客户台账</div>
     <div class="tab" onclick="switchTab('daily')">📋 每日跟进</div>
     <div class="tab" onclick="switchTab('csvsync')">📥 导入同步</div>
@@ -256,6 +257,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
       <option value="B">B 有兴趣</option>
       <option value="C">C 了解中</option>
       <option value="done">✓ 成交</option>
+      <option value="lost">✗ 已购竞品</option>
     </select>
     <select id="sortOrder" onchange="renderClients()" style="max-width:150px">
       <option value="urgency">综合紧急度</option>
@@ -271,13 +273,20 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
 
 <!-- 每日跟进 -->
 <div class="page" id="page-daily">
-  <div class="card">
-    <div class="card-title"><span class="dot"></span>今日跟进名单</div>
-    <div class="flex mb8">
-      <button class="btn btn-primary" onclick="genDailyFollowup()">生成跟进名单 + 话术</button>
-    </div>
-    <div id="dailyList"><div class="empty">点击上方按钮生成</div></div>
+  <div class="flex mb8" style="flex-wrap:wrap;gap:6px">
+    <select id="dailyFilterLevel" onchange="renderDailyList()" style="max-width:140px">
+      <option value="">全部等级</option>
+      <option value="Aplus">A+ 准成交</option>
+      <option value="A">A 强兴趣</option>
+      <option value="B">B 有兴趣</option>
+      <option value="C">C 了解中</option>
+    </select>
+    <select id="dailySortOrder" onchange="renderDailyList()" style="max-width:160px">
+      <option value="urgency">按意向度排序</option>
+      <option value="addTime">按添加时间排序</option>
+    </select>
   </div>
+  <div id="dailyList"><div class="empty">今日暂无需跟进的客户</div></div>
 </div>
 
 <!-- 导入同步 -->
@@ -302,14 +311,29 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
         <button class="btn btn-primary" id="csvParseBtn" onclick="parseCsvFile()" disabled style="width:100%">② 解析 · 预览联系人</button>
       </div>
       <div class="card" id="csvFilterCard" style="display:none">
-        <div class="card-title"><span class="dot"></span>③ 确认客户名单（取消勾选排除）</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">共检测到 <span id="csvContactCount" style="color:var(--accent);font-weight:700">0</span> 个联系人，取消勾选非客户</div>
-        <div style="display:flex;gap:6px;margin-bottom:8px">
+        <div class="card-title"><span class="dot"></span>③ 确认客户名单</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">共检测到 <span id="csvContactCount" style="color:var(--accent);font-weight:700">0</span> 个联系人 · 可修改意向度和跟进时间再导入</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="csvSelectAll(true)">全选</button>
           <button class="btn btn-ghost btn-sm" onclick="csvSelectAll(false)">全不选</button>
-          <input type="text" id="csvContactSearch" placeholder="搜索…" style="flex:1;font-size:12px" oninput="renderCsvContactList()">
+          <select id="csvFilterLevel" onchange="renderCsvContactList()" style="font-size:12px;padding:3px 7px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px">
+            <option value="">全部等级</option>
+            <option value="Aplus">A+ 准成交</option>
+            <option value="A">A 强兴趣</option>
+            <option value="B">B 有兴趣</option>
+            <option value="C">C 了解中</option>
+            <option value="done">✓ 成交</option>
+            <option value="new">仅新客户</option>
+          </select>
+          <select id="csvSortOrder" onchange="renderCsvContactList()" style="font-size:12px;padding:3px 7px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px">
+            <option value="existing">已有客户优先</option>
+            <option value="urgency">按意向度排序</option>
+            <option value="msgCount">按消息数排序</option>
+            <option value="name">按名称排序</option>
+          </select>
+          <input type="text" id="csvContactSearch" placeholder="搜索…" style="flex:1;min-width:80px;font-size:12px" oninput="renderCsvContactList()">
         </div>
-        <div id="csvContactList" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+        <div id="csvContactList" style="max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
         <div style="margin-top:10px">
           <button class="btn btn-primary" id="csvSyncBtn" onclick="startCsvSync()" style="width:100%">④ 开始 AI 分析 · 同步云端</button>
         </div>
@@ -587,12 +611,13 @@ function syncSettingsUI(){
 
 // ===== 标签页 =====
 function switchTab(tab){
-  var tabs=['dashboard','chat','clients','daily','csvsync','settings'];
+  var tabs=['dashboard','clients','daily','csvsync','settings'];
   document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',tabs[i]===tab);});
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.getElementById('page-'+tab).classList.add('active');
   if(tab==='clients')renderClients();
   if(tab==='dashboard')renderDashboard();
+  if(tab==='daily')renderDailyList();
   if(tab==='settings')updateDataStats();
 }
 
@@ -614,7 +639,7 @@ function levelConfig(level){
     'B':{label:'B \u6709\u5174\u8da3',cls:'tag-B',score:15},
     'C':{label:'C \u4e86\u89e3\u4e2d',cls:'tag-C',score:0},
     'done':{label:'\u2713 \u6210\u4ea4',cls:'tag-done',score:-10},
-    'referral':{label:'\u267b \u8f6c\u4ecb\u7ecd',cls:'tag-referral',score:-10}
+    'referral':{label:'\u267b \u8f6c\u4ecb\u7ecd',cls:'tag-referral',score:-10},'lost':{label:'\u2717 \u5df2\u8d2d\u7ade\u54c1',cls:'tag-lost',score:-99}
   };
   return map[level]||{label:level||'C',cls:'tag-C',score:0};
 }
@@ -655,7 +680,7 @@ function renderAfterSaleDash(done,todayStr){
 async function renderDashboard(){
   var today=new Date();var todayStr=today.toISOString().slice(0,10);
   var all=Object.entries(clients);
-  var active=all.filter(function(e){return e[1].level!=='done'&&e[1].level!=='referral';});
+  var active=all.filter(function(e){return e[1].level!=='done'&&e[1].level!=='referral'&&e[1].level!=='lost';});
   var done=all.filter(function(e){return e[1].level==='done';});
   var toFollow=active.filter(function(e){return e[1].nextFollow&&e[1].nextFollow<=todayStr;});
   toFollow.sort(function(a,b){return calcUrgencyScore(b[0],b[1])-calcUrgencyScore(a[0],a[1]);});
@@ -1360,7 +1385,7 @@ function changeClientLevelFromModal(){
 
 function changeClientLevel(name,callback){
   var c=clients[name];if(!c)return;
-  var levels=['Aplus','A','B','C','done'];
+  var levels=['Aplus','A','B','C','done','lost'];
   var labels={'Aplus':'A+ 准成交','A':'A 强兴趣','B':'B 有兴趣','C':'C 了解中','done':'✓ 已成交'};
   var cur=c.level||'C';
   var opts=levels.map(function(l,i){return (i+1)+'. '+labels[l]+(l===cur?' ← 当前':'');}).join('\n');
@@ -1377,6 +1402,7 @@ function changeClientLevel(name,callback){
     clients[name].afterSaleStep=0;
     clients[name].nextFollow=today;
   }
+  if(newLevel==='lost'){clients[name].nextFollow='';}
   if(newLevel!=='done'){
     var gaps={Aplus:1,A:2,B:3,C:5};
     var nd=new Date();nd.setDate(nd.getDate()+(gaps[newLevel]||2));
@@ -1389,6 +1415,14 @@ function changeClientLevel(name,callback){
   if(typeof callback==='function')callback();
 }
 
+function unmarkLost(name){
+  if(!clients[name])return;
+  clients[name].level='C';
+  var nd=new Date();nd.setDate(nd.getDate()+5);
+  clients[name].nextFollow=nd.toISOString().slice(0,10);
+  saveClientToCloud(name);renderClients();renderDashboard();
+  showToast('【'+name+'】已恢复为C级');
+}
 function markClientDone(name){
   if(!confirm('确认将【'+name+'】标记为已成交？\n成交后会进入售后跟进周期。'))return;
   if(!clients[name])return;
@@ -1494,14 +1528,16 @@ function renderClients(){
       '<div class="client-right">'+
         '<span class="tag '+lc.cls+'" style="cursor:pointer" title="点击修改等级" onclick="event.stopPropagation();changeClientLevel(\''+name+'\')">'+lc.label+' ✎</span>'+fcHtml+
         '<div class="client-follow">跟进：'+(c.nextFollow||'未设置')+' <span class="rc-efd" style="cursor:pointer;color:var(--accent);font-size:10px">[改]</span></div>'+
-        '<button class="rc-sfu btn btn-primary btn-sm" style="margin-top:4px;font-size:11px;padding:3px 9px">主动跟进</button>'+
-      (c.level!=='done'?'<button class="rc-mdc btn btn-ghost btn-sm" style="margin-top:3px;font-size:10px;padding:2px 7px;color:var(--accent)">标记成交</button>':'')+
+        (c.level!=='lost'?'<button class="rc-sfu btn btn-primary btn-sm" style="margin-top:4px;font-size:11px;padding:3px 9px">\u4e3b\u52a8\u8ddf\u8fdb</button>':'<span style="font-size:10px;color:#999;margin-top:4px;display:block">\u4e0d\u518d\u8ddf\u8fdb</span>')+
+      (c.level!=='done'&&c.level!=='lost'?'<button class="rc-mdc btn btn-ghost btn-sm" style="margin-top:3px;font-size:10px;padding:2px 7px;color:var(--accent)">\u6807\u8bb0\u6210\u4ea4</button>':'')+
+      (c.level==='lost'?'<button class="rc-lostb btn btn-ghost btn-sm" style="margin-top:3px;font-size:10px;padding:2px 7px;color:#999">\u53d6\u6d88\u7ade\u54c1</button>':'')+
       '</div>';
     (function(n){
       el.querySelector('.client-avatar').onclick=function(){openClient(n);};
       el.querySelector('.client-info').onclick=function(){openClient(n);};
       el.querySelector('.rc-efd').onclick=function(ev){ev.stopPropagation();editFollowDate(n);};
-      el.querySelector('.rc-sfu').onclick=function(ev){ev.stopPropagation();startFollowUp(n);};
+      var sfuB=el.querySelector('.rc-sfu');if(sfuB)sfuB.onclick=function(ev){ev.stopPropagation();startFollowUp(n);};
+      var lostB=el.querySelector('.rc-lostb');if(lostB)lostB.onclick=function(ev){ev.stopPropagation();unmarkLost(n);};
       var mdcBtn=el.querySelector('.rc-mdc');
       if(mdcBtn)mdcBtn.onclick=function(ev){ev.stopPropagation();markClientDone(n);};
     })(name);
@@ -1526,29 +1562,62 @@ function editFollowDate(name){
 function quickEditFollowDate(){var name=currentClient||getClientName();if(!name){showToast('请先选择客户');return;}editFollowDate(name);}
 
 // ===== 每日跟进 =====
-async function genDailyFollowup(){
+function genDailyFollowup(){switchTab('daily');}
+function renderDailyList(){
   var today=new Date().toISOString().slice(0,10);
-  var toFollow=Object.entries(clients).filter(function(e){return e[1].nextFollow&&e[1].nextFollow<=today;}).sort(function(a,b){return({A:0,B:1,C:2}[a[1].level]||2)-({A:0,B:1,C:2}[b[1].level]||2);});
-  if(!toFollow.length){document.getElementById('dailyList').innerHTML='<div class="empty">今天暂无需跟进的客户 🎉</div>';switchTab('daily');return;}
-  document.getElementById('dailyList').innerHTML='<div class="loading"><div class="spinner"></div> 生成跟进话术…</div>';
-  switchTab('daily');var results=[];
-  for(var i=0;i<toFollow.length;i++){
-    var name=toFollow[i][0];var c=toFollow[i][1];
-    try{
-      var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你是资深销售顾问，说话像朋友，不说销售腔。禁止用"临门一脚""把握机会"。'},{role:'user',content:'客户【'+name+'】'+c.level+'级，痛点：'+c.pain+'，阶段：'+c.stage+'，摘要：'+c.summary+'。\n生成一条今天主动联系的开场话术：像朋友发微信，从客户关心的事切入，不直接谈产品，40字以内。\n只输出话术文字。'}],temperature:0.8,max_tokens:150})});
-      var data=await res.json();results.push({name:name,c:c,script:(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||''});
-    }catch(e){results.push({name:name,c:c,script:'（生成失败）'});}
+  var flEl=document.getElementById('dailyFilterLevel');
+  var soEl=document.getElementById('dailySortOrder');
+  var fl=flEl?flEl.value:'';
+  var so=soEl?soEl.value:'urgency';
+  var toFollow=Object.entries(clients).filter(function(e){
+    var lv=e[1].level;
+    if(lv==='done'||lv==='lost'||lv==='referral')return false;
+    if(!e[1].nextFollow||e[1].nextFollow>today)return false;
+    if(fl&&lv!==fl)return false;
+    return true;
+  });
+  if(so==='urgency'){
+    toFollow.sort(function(a,b){return calcUrgencyScore(b[0],b[1])-calcUrgencyScore(a[0],a[1]);});
+  } else {
+    toFollow.sort(function(a,b){return(b[1]._createdAt||'').localeCompare(a[1]._createdAt||'');});
   }
-  document.getElementById('dailyList').innerHTML=results.map(function(r){
-    return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:9px">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">'+
-        '<div><span style="font-weight:500;font-size:14px">'+r.name+'</span><span class="tag tag-'+(r.c.level||'C')+'" style="margin-left:7px">'+(r.c.level||'C')+'级</span></div>'+
-        '<button class="btn btn-ghost btn-sm" data-t="'+r.script.replace(/"/g,'&quot;')+'" onclick="copyText(this.getAttribute(\'data-t\'))">复制话术</button>'+
-      '</div>'+
-      '<div style="font-size:11px;color:var(--text3);margin-bottom:5px">痛点：'+r.c.pain+' · 上次：'+r.c.lastContact+'</div>'+
-      '<div style="font-size:12px;color:var(--text2);line-height:1.6;background:var(--bg2);border-radius:6px;padding:9px 11px;border-left:3px solid var(--accent)">'+r.script+'</div>'+
-    '</div>';
-  }).join('');
+  var el=document.getElementById('dailyList');
+  if(!toFollow.length){el.innerHTML='<div class="empty">\u4eca\u5929\u6682\u65e0\u9700\u8ddf\u8fdb\u7684\u5ba2\u6237 \u2713</div>';return;}
+  el.innerHTML='';
+  toFollow.forEach(function(entry){
+    var name=entry[0];var c=entry[1];var lc=levelConfig(c.level||'C');
+    var card=document.createElement('div');
+    card.style.cssText='background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:8px;cursor:pointer';
+    card.onclick=function(){startFollowUp(name);};
+    // top row
+    var top=document.createElement('div');
+    top.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px';
+    var left=document.createElement('div');
+    left.style.cssText='display:flex;align-items:center;gap:6px;flex-wrap:wrap';
+    var ns=document.createElement('span');ns.style.cssText='font-weight:500;font-size:14px';ns.textContent=name;left.appendChild(ns);
+    var lt=document.createElement('span');lt.className='tag '+lc.cls;lt.textContent=lc.label;left.appendChild(lt);
+    if(c.openDate){var os=document.createElement('span');os.style.cssText='font-size:10px;color:var(--amber)';os.textContent='📅'+c.openDate;left.appendChild(os);}
+    if(c.followCount>0){var fc=document.createElement('span');fc.style.cssText='font-size:10px;color:var(--text3)';fc.textContent='\u5df2\u8ddf'+c.followCount+'\u6b21';left.appendChild(fc);}
+    top.appendChild(left);
+    var btn=document.createElement('button');btn.className='btn btn-primary btn-sm';btn.textContent='\u8ddf\u8fdb';
+    btn.onclick=function(ev){ev.stopPropagation();startFollowUp(name);};
+    top.appendChild(btn);
+    card.appendChild(top);
+    // info row
+    var info=document.createElement('div');info.style.cssText='font-size:12px;color:var(--text2);margin-bottom:3px';
+    var painLabel=document.createElement('span');painLabel.style.color='var(--text3)';painLabel.textContent='\u75db\u70b9\uff1a';info.appendChild(painLabel);
+    info.appendChild(document.createTextNode(c.pain||'\u6682\u65e0'));
+    var stLabel=document.createElement('span');stLabel.style.cssText='color:var(--text3);margin-left:8px';stLabel.textContent='\u9636\u6bb5\uff1a';info.appendChild(stLabel);
+    info.appendChild(document.createTextNode(c.stage||''));
+    var lcLabel=document.createElement('span');lcLabel.style.cssText='color:var(--text3);margin-left:8px';lcLabel.textContent='\u4e0a\u6b21\uff1a';info.appendChild(lcLabel);
+    info.appendChild(document.createTextNode(c.lastContact||'\u672a\u77e5'));
+    card.appendChild(info);
+    if(c.summary){var sd=document.createElement('div');sd.style.cssText='font-size:11px;color:var(--text3);margin-bottom:3px';sd.textContent=c.summary;card.appendChild(sd);}
+    if(c.fuzzyTime){var fz=document.createElement('div');fz.style.cssText='font-size:11px;color:var(--text3);margin-top:2px';fz.textContent='\u5ba2\u6237\u8bf4\u8fc7\uff1a'+c.fuzzyTime;card.appendChild(fz);}
+    var tags=(c.tags||[]).slice(0,3);
+    if(tags.length){var tr=document.createElement('div');tr.style.marginTop='5px';tags.forEach(function(t){var ts=document.createElement('span');ts.className='tag tag-info';ts.style.fontSize='10px';ts.style.marginRight='3px';ts.textContent=t;tr.appendChild(ts);});card.appendChild(tr);}
+    el.appendChild(card);
+  });
 }
 
 // ===== 收尾总结 =====
@@ -1620,6 +1689,7 @@ if(document.readyState === 'loading'){
 
 // ===== CSV 导入同步 =====
 var csvParsedData = {}; // { name: [messages] }
+var csvOverride = {}; // manual level/date overrides before sync
 var csvContactSelected = {}; // { name: true/false }
 var csvRawFile = null;
 
@@ -1777,35 +1847,72 @@ function saveExcludedSet(set){
 
 function renderCsvContactList(){
   var search=(document.getElementById('csvContactSearch').value||'').toLowerCase();
-  var names=Object.keys(csvParsedData).filter(function(n){return !search||n.toLowerCase().includes(search);});
-  // 排序：已有客户放前面，新客户后面
-  names.sort(function(a,b){
-    var ea=clients[a]?1:0, eb=clients[b]?1:0;
-    if(ea!==eb) return eb-ea;
-    return a.localeCompare(b);
+  var flEl=document.getElementById('csvFilterLevel');
+  var soEl=document.getElementById('csvSortOrder');
+  var fl=flEl?flEl.value:'';
+  var so=soEl?soEl.value:'existing';
+  var names=Object.keys(csvParsedData).filter(function(n){
+    if(search&&!n.toLowerCase().includes(search))return false;
+    if(fl==='new')return !clients[n];
+    if(fl&&fl!=='new'){if(!clients[n])return false;if(clients[n].level!==fl)return false;}
+    return true;
   });
-  var el=document.getElementById('csvContactList');
-  el.innerHTML=names.map(function(name){
+  if(so==='existing'){names.sort(function(a,b){var ea=clients[a]?1:0,eb=clients[b]?1:0;if(ea!==eb)return eb-ea;return a.localeCompare(b);});}
+  else if(so==='urgency'){names.sort(function(a,b){var sa=clients[a]?calcUrgencyScore(a,clients[a]):0,sb=clients[b]?calcUrgencyScore(b,clients[b]):0;return sb-sa;});}
+  else if(so==='msgCount'){names.sort(function(a,b){return(csvParsedData[b]||[]).length-(csvParsedData[a]||[]).length;});}
+  else{names.sort(function(a,b){return a.localeCompare(b);});}
+  var container=document.getElementById('csvContactList');
+  container.innerHTML='';
+  names.forEach(function(name){
     var msgs=csvParsedData[name]||[];
     var checked=csvContactSelected[name]!==false;
     var existing=clients[name];
     var lc=existing?levelConfig(existing.level||'C'):null;
     var lastMsg=msgs[msgs.length-1];
-    var lastCustomer=msgs.slice().reverse().find(function(m){return m.role==='客户';});
-    var preview=lastCustomer?lastCustomer.content.slice(0,30)+'…':'（仅我方消息）';
+    var lastCustomer=msgs.slice().reverse().find(function(m){return m.role==='\u5ba2\u6237';});
+    var preview=lastCustomer?lastCustomer.content.slice(0,30)+'…':'\uff08\u4ec5\u6211\u65b9\u6d88\u606f\uff09';
     var timeStr=lastMsg?(lastMsg.time.getMonth()+1)+'/'+(lastMsg.time.getDate()):'';
-    return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg3);border-radius:8px;border:1px solid '+(checked?'rgba(79,141,255,.3)':'var(--border)')+';cursor:pointer">'+
-      '<input type="checkbox" '+(checked?'checked':'')+' onchange="csvContactSelected[\''+name.replace(/'/g,"\\'")+'\']=this.checked;renderCsvContactList()" style="width:14px;height:14px;accent-color:var(--accent)">'+
-      '<div style="flex:1;min-width:0">'+
-        '<div style="display:flex;align-items:center;gap:5px">'+
-          '<span style="font-weight:500;font-size:13px">'+name+'</span>'+
-          (lc?'<span class="tag '+lc.cls+'" style="font-size:10px">'+lc.label+'</span>':'<span style="font-size:10px;color:var(--text3)">新客户</span>')+
-          '<span style="font-size:10px;color:var(--text3)">'+msgs.length+'条 · '+timeStr+'</span>'+
-        '</div>'+
-        '<div style="font-size:11px;color:var(--text3);margin-top:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+preview+'</div>'+
-      '</div>'+
-    '</label>';
-  }).join('');
+    var curLevel=existing?(existing.level||'C'):'C';
+    var curNext=existing?(existing.nextFollow||''):'';
+
+    var wrap=document.createElement('div');
+    wrap.style.cssText='padding:8px 10px;background:var(--bg3);border-radius:8px;border:1px solid '+(checked?'rgba(79,141,255,.3)':'var(--border)');
+
+    // Header row with checkbox
+    var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;gap:8px';
+    var cb=document.createElement('input');cb.type='checkbox';cb.checked=checked;
+    cb.style.cssText='width:14px;height:14px;accent-color:var(--accent);flex-shrink:0';
+    (function(n,w){cb.onchange=function(){csvContactSelected[n]=this.checked;w.style.borderColor=this.checked?'rgba(79,141,255,.3)':'var(--border)';};}) (name,wrap);
+    hdr.appendChild(cb);
+    var info=document.createElement('div');info.style.cssText='flex:1;min-width:0';
+    var nl=document.createElement('div');nl.style.cssText='display:flex;align-items:center;gap:5px;flex-wrap:wrap';
+    var nsp=document.createElement('span');nsp.style.cssText='font-weight:500;font-size:13px';nsp.textContent=name;nl.appendChild(nsp);
+    if(lc){var lt=document.createElement('span');lt.className='tag '+lc.cls;lt.style.fontSize='10px';lt.textContent=lc.label;nl.appendChild(lt);}
+    else{var ns=document.createElement('span');ns.style.cssText='font-size:10px;color:var(--text3)';ns.textContent='\u65b0\u5ba2\u6237';nl.appendChild(ns);}
+    var ms=document.createElement('span');ms.style.cssText='font-size:10px;color:var(--text3)';ms.textContent=msgs.length+'\u6761 \u00b7 '+timeStr;nl.appendChild(ms);
+    info.appendChild(nl);
+    var pl=document.createElement('div');pl.style.cssText='font-size:11px;color:var(--text3);margin-top:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis';pl.textContent=preview;
+    info.appendChild(pl);
+    hdr.appendChild(info);
+    wrap.appendChild(hdr);
+
+    // Edit row: level selector + date picker
+    var editRow=document.createElement('div');editRow.style.cssText='display:flex;gap:8px;margin-top:7px;align-items:center;flex-wrap:wrap';
+    var ll=document.createElement('span');ll.style.cssText='font-size:11px;color:var(--text3)';ll.textContent='\u610f\u5411\u5ea6\uff1a';editRow.appendChild(ll);
+    var sel=document.createElement('select');sel.style.cssText='font-size:11px;padding:2px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px';
+    [['Aplus','A+ \u51c6\u6210\u4ea4'],['A','A \u5f3a\u5174\u8da3'],['B','B \u6709\u5174\u8da3'],['C','C \u4e86\u89e3\u4e2d'],['done','\u2713 \u6210\u4ea4'],['lost','\u2717 \u5df2\u8d2d\u7ade\u54c1']].forEach(function(o){
+      var opt=document.createElement('option');opt.value=o[0];opt.textContent=o[1];if(o[0]===curLevel)opt.selected=true;sel.appendChild(opt);
+    });
+    (function(n){sel.onchange=function(){csvOverride[n]=csvOverride[n]||{};csvOverride[n].level=this.value;};})(name);
+    editRow.appendChild(sel);
+    var dl=document.createElement('span');dl.style.cssText='font-size:11px;color:var(--text3)';dl.textContent='\u8ddf\u8fdb\u65f6\u95f4\uff1a';editRow.appendChild(dl);
+    var dt=document.createElement('input');dt.type='date';dt.value=curNext;
+    dt.style.cssText='font-size:11px;padding:2px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px';
+    (function(n){dt.onchange=function(){csvOverride[n]=csvOverride[n]||{};csvOverride[n].nextFollow=this.value;};})(name);
+    editRow.appendChild(dt);
+    wrap.appendChild(editRow);
+    container.appendChild(wrap);
+  });
 }
 
 function csvSelectAll(val){
@@ -1859,49 +1966,42 @@ async function startCsvSync(){
     var aiResult=null;
     try{
       var dialog=messages.map(function(m){return m.role+'：'+m.content;}).join('\n');
-      if(dialog.length>2000) dialog=dialog.slice(0,2000)+'…（已截断）';
+      if(dialog.length>2000)dialog=dialog.slice(0,2000)+'…';
       var existingInfo='';
       if(existing){
         existingInfo='\n已有档案：'+existing.level+'级，痛点：'+(existing.pain||'')+'，阶段：'+(existing.stage||'')+'\n';
         var hist=(existing.history||[]).slice(-20);
-        if(hist.length){var histTxt=hist.map(function(h){return(h.role==='user'?'客户':'我')+'：'+(h.content||'').slice(0,120);}).join('\n');if(histTxt.length>3000)histTxt=histTxt.slice(-3000);existingInfo+='\n历史对话（最近'+hist.length+'条）：\n'+histTxt+'\n';}
+        if(hist.length){var histTxt=hist.map(function(h){return(h.role==='user'?'客户':'我')+'：'+(h.content||'').slice(0,120);}).join('\n');if(histTxt.length>3000)histTxt=histTxt.slice(-3000);existingInfo+='\n历史对话（最近'+hist.length+'条）\n'+histTxt+'\n';}
       }
       var userMsg='客户【'+name+'】'+existingInfo+'\n今日新对话：\n'+dialog+'\n\n输出JSON：\n{"level":"Aplus/A/B/C/done之一","sub_type":"准成交/强兴趣/有兴趣/了解中/已成交","pain":"核心痛点","stage":"初识/咨询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标签1","标签2","标签3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","open_date":"开业时间没有则空","fuzzy_time":"模糊时间原话没有则空"}';
       var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL,messages:[{role:'system',content:buildSyncPrompt()},{role:'user',content:userMsg}],temperature:0.4,max_tokens:1000})});
-      if(!res.ok){var errTxt=await res.text();addLog('  ✗ API错误 HTTP '+res.status+'：'+errTxt.slice(0,120),'var(--red)');throw new Error('HTTP '+res.status);}
+      if(!res.ok){var errTxt=await res.text();addLog('  ✖ API错误 HTTP '+res.status+': '+errTxt.slice(0,80),'var(--red)');throw new Error('HTTP '+res.status);}
       var data=await res.json();
-      if(data.error){addLog('  ✗ API返回错误：'+(data.error.message||JSON.stringify(data.error)).slice(0,120),'var(--red)');throw new Error(data.error.message||'API error');}
+      if(data.error){addLog('  ✖ '+( data.error.message||'API error').slice(0,80),'var(--red)');throw new Error('API error');}
       var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
-      addLog('  → 原始返回：'+txt.slice(0,100),'var(--text3)');
       txt=txt.replace(/```json|```/g,'').trim();
       var mm=txt.match(/\{[\s\S]*\}/);
       if(mm) aiResult=JSON.parse(mm[0]);
-      if(aiResult){
-        addLog('  ✓ AI: '+aiResult.level+'级 · '+(aiResult.pain||'(无痛点)').slice(0,24),'var(--green)');
-        addLog('    摘要：'+(aiResult.summary||'(空)'),'var(--text3)');
-        addLog('    标签：'+((aiResult.tags||[]).join('、')||'(空)'),'var(--text3)');
-      } else {
-        addLog('  ⚠ JSON解析失败，原文：'+txt.slice(0,120),'var(--amber)');
-      }
+      if(aiResult) addLog('  ✓ AI: '+aiResult.level+'级 · '+(aiResult.pain||'').slice(0,24),'var(--green)');
     }catch(ex){
       addLog('  ⚠ AI分析失败：'+ex.message,'var(--amber)');
     }
 
     // 合并历史
     try{
-      if(!messages.length){addLog('  ⚠ 无新消息，跳过写入','var(--amber)');skipped++;continue;}
+      if(!messages.length){addLog('  ⚠ 无新消息','var(--amber)');skipped++;continue;}
       var newHist=messages.map(function(m){return{role:m.role==='客户'?'user':'assistant',content:m.content,replyUsed:m.role==='我'?m.content:null,time:m.time instanceof Date?m.time.toISOString():m.time};});
       var oldHist=(existing&&existing.history)||[];
       var oldKeys=new Set(oldHist.map(function(h){return h.content+':'+(h.time||'').slice(0,10);}));
       var merged=oldHist.concat(newHist.filter(function(h){return !oldKeys.has(h.content+':'+h.time.slice(0,10));}));
 
       var ai=aiResult||{};
-      var level=ai.level||(existing&&existing.level)||'C';
+      var ov=csvOverride[name]||{};
+      var level=ov.level||ai.level||(existing&&existing.level)||'C';
       var openDate=ai.open_date||(existing&&existing.openDate)||'';
       var fuzzyTime=ai.fuzzy_time||'';
       var followDays=ai.follow_days||2;
-      var lastTime=messages[messages.length-1].time;
-      var lastContact=lastTime instanceof Date?lastTime.toISOString().slice(0,10):String(lastTime).slice(0,10);
+      var lastT=messages[messages.length-1].time;var lastContact=lastT instanceof Date?lastT.toISOString().slice(0,10):String(lastT).slice(0,10);
 
       // 客户有没有回复 → 决定 follow_count
       var customerReplied=messages.some(function(m){return m.role==='客户';});
@@ -1910,6 +2010,7 @@ async function startCsvSync(){
       // 计算跟进时间
       var todayD=new Date(today);
       var nextFollow=calcNextFollow(level,followDays,new Date(lastContact),openDate,todayD,fuzzyTime?parseFuzzyTime(fuzzyTime,todayD):'');
+      if(ov.nextFollow)nextFollow=ov.nextFollow;
 
       var row={
         user_id:currentUserId,name:name,
@@ -1952,7 +2053,7 @@ async function startCsvSync(){
       addLog('  ☁ 已同步，下次跟进：'+nextFollow,'var(--accent)');
       success++;
     }catch(ex){
-      addLog('  ✗ 写入失败（'+ex.message+'）','var(--red)');
+      addLog('  ✗ 写入失败：'+ex.message,'var(--red)');
       failed++;
     }
 
