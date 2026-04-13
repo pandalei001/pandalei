@@ -298,6 +298,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
 <!-- 导入同步 -->
 <div class="page" id="page-csvsync">
   <div class="two-col">
+    <!-- 左列：上传 + 勾选 -->
     <div>
       <div class="card">
         <div class="card-title"><span class="dot"></span>① 拖入 MemoTrace 导出的 CSV</div>
@@ -316,7 +317,7 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
         </div>
         <button class="btn btn-primary" id="csvParseBtn" onclick="parseCsvFile()" disabled style="width:100%">② 解析 · 预览联系人</button>
       </div>
-      <!-- Step 3: simple checklist only -->
+      <!-- Step 3: 勾选排除非客户 -->
       <div class="card" id="csvFilterCard" style="display:none">
         <div class="card-title"><span class="dot"></span>③ 排除非客户（取消勾选即排除）</div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px">共检测到 <span id="csvContactCount" style="color:var(--accent);font-weight:700">0</span> 个联系人 · 把非客户的取消勾选</div>
@@ -325,17 +326,46 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
           <button class="btn btn-ghost btn-sm" onclick="csvSelectAll(false)">全不选</button>
           <input type="text" id="csvContactSearch" placeholder="搜索…" style="flex:1;font-size:12px" oninput="renderCsvContactList()">
         </div>
-        <div id="csvContactList" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:3px"></div>
+        <div id="csvContactList" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:3px"></div>
         <div style="margin-top:10px">
-          <button class="btn btn-primary" id="csvAnalyzeBtn" onclick="startCsvAnalyze()" style="width:100%">④ 开始 AI 分析</button>
+          <button class="btn btn-primary" id="csvAnalyzeBtn" onclick="startCsvAnalyze()" style="width:100%">④ 开始 AI 分析 →</button>
         </div>
       </div>
-
-      <!-- Step 4: AI results with edit controls -->
-      <div class="card" id="csvResultCard" style="display:none">
-        <div class="card-title flex-between">
-          <span><span class="dot"></span>④ AI 分析结果 · 确认后同步</span>
-          <span id="csvResultSummary" style="font-size:11px;color:var(--text3)"></span>
+      <!-- 同步进度（分析完后出现在左边） -->
+      <div class="card" id="csvProgressCard" style="display:none">
+        <div class="card-title"><span class="dot"></span>同步进度</div>
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px">
+            <span id="csvProgressText">准备中…</span>
+            <span id="csvProgressNum">0 / 0</span>
+          </div>
+          <div style="background:var(--bg3);border-radius:4px;height:6px;overflow:hidden">
+            <div id="csvProgressBar" style="height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:4px"></div>
+          </div>
+        </div>
+        <div id="csvProgressLog" style="max-height:300px;overflow-y:auto;font-size:11px;color:var(--text2);line-height:2;font-family:monospace"></div>
+      </div>
+      <div class="card" id="csvDoneCard" style="display:none">
+        <div style="text-align:center;padding:16px">
+          <div style="font-size:32px;margin-bottom:8px">✅</div>
+          <div style="font-size:15px;font-weight:500;color:var(--green)" id="csvDoneText">同步完成</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px" id="csvDoneSub"></div>
+          <button class="btn btn-primary" style="margin-top:14px" onclick="switchTab('dashboard')">查看今日看板</button>
+        </div>
+      </div>
+    </div>
+    <!-- 右列：AI 分析结果 (常驻) -->
+    <div>
+      <div id="csvResultPlaceholder" style="display:flex;align-items:center;justify-content:center;min-height:200px;color:var(--text3);font-size:13px;border:2px dashed var(--border);border-radius:12px">
+        AI 分析结果将显示在这里
+      </div>
+      <div id="csvResultCard" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+          <div style="font-size:13px;font-weight:500;color:var(--text)">
+            ④ AI 分析结果
+            <span id="csvResultSummary" style="font-size:11px;color:var(--text3);margin-left:8px;font-weight:400"></span>
+          </div>
+          <button class="btn btn-primary" id="csvSyncBtn" onclick="startCsvSync()" style="padding:6px 18px">⑤ 确认 · 同步到云端</button>
         </div>
         <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
           <select id="csvResultFilter" onchange="renderCsvResults()" style="font-size:12px;padding:3px 7px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px">
@@ -354,32 +384,9 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
           </select>
           <input type="text" id="csvResultSearch" placeholder="搜索…" style="flex:1;min-width:80px;font-size:12px" oninput="renderCsvResults()">
         </div>
-        <div id="csvResultList" style="max-height:460px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
-        <div style="margin-top:10px">
-          <button class="btn btn-primary" id="csvSyncBtn" onclick="startCsvSync()" style="width:100%">⑤ 确认 · 同步到云端</button>
-        </div>
-      </div>
-    </div>
-    <div>
-      <div class="card" id="csvProgressCard" style="display:none">
-        <div class="card-title"><span class="dot"></span>同步进度</div>
-        <div style="margin-bottom:8px">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px">
-            <span id="csvProgressText">准备中…</span>
-            <span id="csvProgressNum">0 / 0</span>
-          </div>
-          <div style="background:var(--bg3);border-radius:4px;height:6px;overflow:hidden">
-            <div id="csvProgressBar" style="height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:4px"></div>
-          </div>
-        </div>
-        <div id="csvProgressLog" style="max-height:420px;overflow-y:auto;font-size:11px;color:var(--text2);line-height:2;font-family:monospace"></div>
-      </div>
-      <div class="card" id="csvDoneCard" style="display:none">
-        <div style="text-align:center;padding:16px">
-          <div style="font-size:32px;margin-bottom:8px">✅</div>
-          <div style="font-size:15px;font-weight:500;color:var(--green)" id="csvDoneText">同步完成</div>
-          <div style="font-size:12px;color:var(--text2);margin-top:4px" id="csvDoneSub"></div>
-          <button class="btn btn-primary" style="margin-top:14px" onclick="switchTab('dashboard')">查看今日看板</button>
+        <div id="csvResultList" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+          <button class="btn btn-primary" onclick="startCsvSync()" style="width:100%">⑤ 确认 · 同步到云端</button>
         </div>
       </div>
     </div>
@@ -1923,20 +1930,25 @@ async function startCsvAnalyze(){
   if(!toAnalyze.length){showToast('请至少勾选一个客户');return;}
   if(!cfg.dsKey){showToast('请先在配置页填写 API Key');return;}
   var btn=document.getElementById('csvAnalyzeBtn');
-  btn.disabled=true;btn.textContent='分析中…';
-  // Save excluded
+  btn.disabled=true;
   var excluded=loadExcludedSet();
   Object.keys(csvContactSelected).forEach(function(n){if(!csvContactSelected[n])excluded.add(n);else excluded.delete(n);});
   saveExcludedSet(excluded);
-  // Reset results
   csvAnalyzeResults={};
   csvOverride={};
+  // Show right panel immediately with loading state
+  document.getElementById('csvResultPlaceholder').style.display='none';
+  document.getElementById('csvResultCard').style.display='block';
+  document.getElementById('csvResultSummary').textContent='分析中 0 / '+toAnalyze.length+'...';
+  document.getElementById('csvResultList').innerHTML='<div class="loading"><div class="spinner"></div> AI 分析中，请稍候…</div>';
   var today=new Date().toISOString().slice(0,10);
+  var todayD=new Date(today);
   for(var i=0;i<toAnalyze.length;i++){
     var name=toAnalyze[i];
     var messages=csvParsedData[name]||[];
     var existing=clients[name]||null;
     btn.textContent='AI分析中 ('+(i+1)+'/'+toAnalyze.length+')…';
+    document.getElementById('csvResultSummary').textContent='分析中 '+(i+1)+' / '+toAnalyze.length;
     var aiResult=null;
     try{
       var dialog=messages.map(function(m){return m.role+'：'+m.content;}).join('\n');
@@ -1947,7 +1959,7 @@ async function startCsvAnalyze(){
         var hist=(existing.history||[]).slice(-20);
         if(hist.length){var histTxt=hist.map(function(h){return(h.role==='user'?'客户':'我')+'：'+(h.content||'').slice(0,120);}).join('\n');if(histTxt.length>3000)histTxt=histTxt.slice(-3000);existingInfo+='\n历史对话（最近'+hist.length+'条）\n'+histTxt+'\n';}
       }
-      var userMsg='客户【'+name+'】'+existingInfo+'\n今日新对话：\n'+dialog+'\n\n输出JSON：\n{"level":"Aplus/A/B/C/done之一","sub_type":"准成交/强兴趣/有兴趣/了解中/已成交","pain":"核心痛点","stage":"初识/咋询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标煸1","标煸2","标煸3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","open_date":"开业时间没有则空","fuzzy_time":"模糊时间原话没有则空"}';
+      var userMsg='客户【'+name+'】'+existingInfo+'\n今日新对话：\n'+dialog+'\n\n输出JSON：\n{"level":"Aplus/A/B/C/done之一","sub_type":"","pain":"核心痛点","stage":"初识/咋询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标煸1","标煸2","标煸3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","open_date":"开业时间没有则空","fuzzy_time":"模糊时间原话没有则空"}';
       var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL,messages:[{role:'system',content:buildSyncPrompt()},{role:'user',content:userMsg}],temperature:0.4,max_tokens:1000})});
       if(!res.ok){var et=await res.text();throw new Error('HTTP '+res.status+': '+et.slice(0,60));}
       var data=await res.json();
@@ -1957,22 +1969,32 @@ async function startCsvAnalyze(){
       var mm=txt.match(/\{[\s\S]*\}/);
       if(mm)aiResult=JSON.parse(mm[0]);
     }catch(ex){
-      aiResult={level:(existing&&existing.level)||'C',pain:'',stage:'初识',follow_days:2,summary:'(分析失败: '+ex.message.slice(0,30)+')',tags:[],wx_group:'',open_date:'',fuzzy_time:''};
+      aiResult={level:(existing&&existing.level)||'C',pain:'',stage:'初识',follow_days:2,summary:'(分析失败: '+ex.message.slice(0,30)+')',tags:[],wx_group:'',open_date:'',fuzzy_time:'',_error:true};
     }
+    // Calculate AI-suggested next follow date
+    var ai=aiResult||{};
+    var lvl=ai.level||(existing&&existing.level)||'C';
+    var fd=ai.follow_days||2;
+    var lastT=messages.length?messages[messages.length-1].time:new Date();
+    var lastContact=lastT instanceof Date?lastT.toISOString().slice(0,10):String(lastT).slice(0,10);
+    var fuzzyDate=ai.fuzzy_time?parseFuzzyTime(ai.fuzzy_time,todayD):'';
+    var aiNextFollow=calcNextFollow(lvl,fd,new Date(lastContact),ai.open_date||'',todayD,fuzzyDate);
     csvAnalyzeResults[name]={
       ai:aiResult,
       messages:messages,
       existing:existing,
-      level:aiResult?aiResult.level:(existing&&existing.level)||'C',
-      nextFollow:''
+      level:lvl,
+      aiNextFollow:aiNextFollow,
+      lastContact:lastContact
     };
+    // Render incrementally
+    renderCsvResults();
     if(i<toAnalyze.length-1)await new Promise(function(r){setTimeout(r,300);});
   }
-  btn.disabled=false;btn.textContent='✓ 重新分析';
-  document.getElementById('csvResultCard').style.display='block';
-  document.getElementById('csvResultCard').scrollIntoView({behavior:'smooth'});
+  btn.disabled=false;
+  btn.textContent='↺ 重新分析';
   document.getElementById('csvResultSummary').textContent='共 '+toAnalyze.length+' 个客户，确认后点同步';
-  renderCsvResults();
+  showToast('AI分析完成 ✓ 请确认后同步');
 }
 function renderCsvResults(){
   var fl=document.getElementById('csvResultFilter')?document.getElementById('csvResultFilter').value:'';
@@ -1985,60 +2007,74 @@ function renderCsvResults(){
     if(fl&&lv!==fl)return false;
     return true;
   });
-  if(so==='urgency'){names.sort(function(a,b){var la=(csvOverride[a]&&csvOverride[a].level)||csvAnalyzeResults[a].level||'C',lb=(csvOverride[b]&&csvOverride[b].level)||csvAnalyzeResults[b].level||'C';return (lvOrder[la]||9)-(lvOrder[lb]||9);});}
+  if(so==='urgency'){names.sort(function(a,b){var la=(csvOverride[a]&&csvOverride[a].level)||csvAnalyzeResults[a].level||'C',lb=(csvOverride[b]&&csvOverride[b].level)||csvAnalyzeResults[b].level||'C';return(lvOrder[la]||9)-(lvOrder[lb]||9);});}
   else if(so==='msgCount'){names.sort(function(a,b){return(csvAnalyzeResults[b].messages||[]).length-(csvAnalyzeResults[a].messages||[]).length;});}
   else{names.sort(function(a,b){return a.localeCompare(b);});}
   var container=document.getElementById('csvResultList');
   container.innerHTML='';
-  var lvLabels={Aplus:'A+ 准成交',A:'A 强兴趣',B:'B 有兴趣',C:'C 了解中',done:'✓ 成交',lost:'✗ 已购竞品'};
   names.forEach(function(name){
     var r=csvAnalyzeResults[name];
     var ai=r.ai||{};
     var curLv=(csvOverride[name]&&csvOverride[name].level)||r.level||'C';
-    var curNext=(csvOverride[name]&&csvOverride[name].nextFollow)||'';
+    // nextFollow: user override > AI suggestion
+    var aiNext=r.aiNextFollow||'';
+    var userNext=(csvOverride[name]&&csvOverride[name].nextFollow)||'';
+    var displayNext=userNext||aiNext;
     var lc=levelConfig(curLv);
+    var isError=!!(ai._error);
     var card=document.createElement('div');
-    card.style.cssText='padding:10px 12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)';
-    // Name + level tag + msg count
-    var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px';
+    card.style.cssText='padding:10px 12px;background:var(--bg3);border-radius:10px;border:1px solid '+(isError?'rgba(255,91,91,.3)':'var(--border)');
+    // ── Header: name + level tag + msg count ──
+    var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px';
     var ns=document.createElement('span');ns.style.cssText='font-weight:500;font-size:13px';ns.textContent=name;hdr.appendChild(ns);
     var lt=document.createElement('span');lt.className='tag '+lc.cls;lt.textContent=lc.label;hdr.appendChild(lt);
-    if(r.existing){var ex=document.createElement('span');ex.style.cssText='font-size:10px;color:var(--text3)';ex.textContent='原: '+r.existing.level+'级';hdr.appendChild(ex);}
-    else{var nw=document.createElement('span');nw.style.cssText='font-size:10px;color:var(--text3)';nw.textContent='新客户';hdr.appendChild(nw);}
-    var mc=document.createElement('span');mc.style.cssText='font-size:10px;color:var(--text3);margin-left:auto';mc.textContent=(r.messages||[]).length+'条消息';hdr.appendChild(mc);
+    if(r.existing){var ex=document.createElement('span');ex.style.cssText='font-size:10px;color:var(--text3)';ex.textContent='原 '+r.existing.level+'级';hdr.appendChild(ex);}
+    else{var nw=document.createElement('span');nw.style.cssText='font-size:10px;color:var(--green)';nw.textContent='新客户';hdr.appendChild(nw);}
+    var mc=document.createElement('span');mc.style.cssText='font-size:10px;color:var(--text3);margin-left:auto';mc.textContent=(r.messages||[]).length+'条';hdr.appendChild(mc);
     card.appendChild(hdr);
-    // AI summary + pain
-    if(ai.summary||ai.pain){
-      var detail=document.createElement('div');detail.style.cssText='font-size:11px;color:var(--text2);margin-bottom:6px;line-height:1.6';
-      if(ai.pain){var pl=document.createElement('span');pl.style.color='var(--text3)';pl.textContent='痛点: ';detail.appendChild(pl);detail.appendChild(document.createTextNode(ai.pain));detail.appendChild(document.createElement('br'));}
-      if(ai.summary){var sl=document.createElement('span');sl.style.color='var(--text3)';sl.textContent='画像: ';detail.appendChild(sl);detail.appendChild(document.createTextNode(ai.summary));}
-      card.appendChild(detail);
+    // ── AI info: pain + summary + tags ──
+    if(!isError&&(ai.pain||ai.summary)){
+      var det=document.createElement('div');det.style.cssText='font-size:11px;color:var(--text2);margin-bottom:5px;line-height:1.6';
+      if(ai.pain){var pl=document.createElement('span');pl.style.color='var(--text3)';pl.textContent='痛点: ';det.appendChild(pl);det.appendChild(document.createTextNode(ai.pain));det.appendChild(document.createElement('br'));}
+      if(ai.summary){var sl=document.createElement('span');sl.style.color='var(--text3)';sl.textContent='画像: ';det.appendChild(sl);det.appendChild(document.createTextNode(ai.summary));}
+      card.appendChild(det);
     }
-    // Tags
-    if(ai.tags&&ai.tags.length){
+    if(!isError&&ai.tags&&ai.tags.length){
       var tr=document.createElement('div');tr.style.cssText='display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px';
-      ai.tags.forEach(function(t){var ts=document.createElement('span');ts.className='tag tag-info';ts.style.fontSize='10px';ts.textContent=t;tr.appendChild(ts);});
+      ai.tags.forEach(function(t){if(!t)return;var ts=document.createElement('span');ts.className='tag tag-info';ts.style.fontSize='10px';ts.textContent=t;tr.appendChild(ts);});
       card.appendChild(tr);
     }
-    // Edit row
-    var er=document.createElement('div');er.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:6px;margin-top:2px';
+    // ── Edit row: level + follow date with AI suggestion ──
+    var er=document.createElement('div');er.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:7px;margin-top:4px';
+    // Level selector
     var ll=document.createElement('span');ll.style.cssText='font-size:11px;color:var(--text3)';ll.textContent='意向度：';er.appendChild(ll);
     var sel=document.createElement('select');sel.style.cssText='font-size:11px;padding:2px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px';
     [['Aplus','A+ 准成交'],['A','A 强兴趣'],['B','B 有兴趣'],['C','C 了解中'],['done','✓ 成交'],['lost','✗ 已购竞品']].forEach(function(o){
       var opt=document.createElement('option');opt.value=o[0];opt.textContent=o[1];if(o[0]===curLv)opt.selected=true;sel.appendChild(opt);
     });
-    (function(n,h){sel.onchange=function(){
-      csvOverride[n]=csvOverride[n]||{};csvOverride[n].level=this.value;
-      var lc2=levelConfig(this.value);
-      h.querySelector('.tag').className='tag '+lc2.cls;
-      h.querySelector('.tag').textContent=lc2.label;
-    };})(name,hdr);
+    (function(n,h){
+      sel.onchange=function(){
+        csvOverride[n]=csvOverride[n]||{};csvOverride[n].level=this.value;
+        var lc2=levelConfig(this.value);
+        var tagEl=h.querySelector('.tag');if(tagEl){tagEl.className='tag '+lc2.cls;tagEl.textContent=lc2.label;}
+      };
+    })(name,hdr);
     er.appendChild(sel);
-    var dl=document.createElement('span');dl.style.cssText='font-size:11px;color:var(--text3)';dl.textContent='跟进时间：';er.appendChild(dl);
-    var dt=document.createElement('input');dt.type='date';dt.value=curNext;
-    dt.style.cssText='font-size:11px;padding:2px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px';
+    // Follow date group
+    var dg=document.createElement('div');dg.style.cssText='display:flex;flex-direction:column;gap:2px;flex:1;min-width:140px';
+    var dlabel=document.createElement('div');dlabel.style.cssText='display:flex;align-items:center;gap:4px';
+    var dl=document.createElement('span');dl.style.cssText='font-size:11px;color:var(--text3)';dl.textContent='跟进时间：';dlabel.appendChild(dl);
+    if(aiNext){
+      var aiHint=document.createElement('span');aiHint.style.cssText='font-size:10px;color:var(--accent);background:rgba(79,141,255,.12);padding:1px 5px;border-radius:4px';
+      aiHint.textContent='AI建议 '+aiNext;dlabel.appendChild(aiHint);
+    }
+    dg.appendChild(dlabel);
+    var dt=document.createElement('input');dt.type='date';dt.value=displayNext;
+    dt.style.cssText='font-size:11px;padding:3px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px;width:100%';
+    dt.title=aiNext?'AI建议: '+aiNext+'，可手动修改':'手动设置跟进时间';
     (function(n){dt.onchange=function(){csvOverride[n]=csvOverride[n]||{};csvOverride[n].nextFollow=this.value;};})(name);
-    er.appendChild(dt);
+    dg.appendChild(dt);
+    er.appendChild(dg);
     card.appendChild(er);
     container.appendChild(card);
   });
