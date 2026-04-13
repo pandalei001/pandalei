@@ -265,6 +265,12 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
       <option value="lastChat">最近聊天时间</option>
       <option value="done">成交优先</option>
     </select>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer;user-select:none">
+      <input type="checkbox" id="excludeDone" onchange="renderClients()" style="accent-color:var(--accent)"> 排除已成交
+    </label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer;user-select:none">
+      <input type="checkbox" id="excludeLost" onchange="renderClients()" style="accent-color:var(--accent)"> 排除已购竞品
+    </label>
     <button class="btn btn-primary btn-sm" onclick="genDailyFollowup()">生成今日跟进</button>
     <button class="btn btn-ghost btn-sm" onclick="exportCSV()">导出CSV</button>
   </div>
@@ -310,32 +316,47 @@ textarea{resize:vertical;}textarea:focus,input:focus,select:focus{border-color:v
         </div>
         <button class="btn btn-primary" id="csvParseBtn" onclick="parseCsvFile()" disabled style="width:100%">② 解析 · 预览联系人</button>
       </div>
+      <!-- Step 3: simple checklist only -->
       <div class="card" id="csvFilterCard" style="display:none">
-        <div class="card-title"><span class="dot"></span>③ 确认客户名单</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">共检测到 <span id="csvContactCount" style="color:var(--accent);font-weight:700">0</span> 个联系人 · 可修改意向度和跟进时间再导入</div>
-        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+        <div class="card-title"><span class="dot"></span>③ 排除非客户（取消勾选即排除）</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">共检测到 <span id="csvContactCount" style="color:var(--accent);font-weight:700">0</span> 个联系人 · 把非客户的取消勾选</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
           <button class="btn btn-ghost btn-sm" onclick="csvSelectAll(true)">全选</button>
           <button class="btn btn-ghost btn-sm" onclick="csvSelectAll(false)">全不选</button>
-          <select id="csvFilterLevel" onchange="renderCsvContactList()" style="font-size:12px;padding:3px 7px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px">
+          <input type="text" id="csvContactSearch" placeholder="搜索…" style="flex:1;font-size:12px" oninput="renderCsvContactList()">
+        </div>
+        <div id="csvContactList" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:3px"></div>
+        <div style="margin-top:10px">
+          <button class="btn btn-primary" id="csvAnalyzeBtn" onclick="startCsvAnalyze()" style="width:100%">④ 开始 AI 分析</button>
+        </div>
+      </div>
+
+      <!-- Step 4: AI results with edit controls -->
+      <div class="card" id="csvResultCard" style="display:none">
+        <div class="card-title flex-between">
+          <span><span class="dot"></span>④ AI 分析结果 · 确认后同步</span>
+          <span id="csvResultSummary" style="font-size:11px;color:var(--text3)"></span>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+          <select id="csvResultFilter" onchange="renderCsvResults()" style="font-size:12px;padding:3px 7px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px">
             <option value="">全部等级</option>
             <option value="Aplus">A+ 准成交</option>
             <option value="A">A 强兴趣</option>
             <option value="B">B 有兴趣</option>
             <option value="C">C 了解中</option>
             <option value="done">✓ 成交</option>
-            <option value="new">仅新客户</option>
+            <option value="lost">✗ 已购竞品</option>
           </select>
-          <select id="csvSortOrder" onchange="renderCsvContactList()" style="font-size:12px;padding:3px 7px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px">
-            <option value="existing">已有客户优先</option>
+          <select id="csvResultSort" onchange="renderCsvResults()" style="font-size:12px;padding:3px 7px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px">
             <option value="urgency">按意向度排序</option>
-            <option value="msgCount">按消息数排序</option>
             <option value="name">按名称排序</option>
+            <option value="msgCount">按消息数排序</option>
           </select>
-          <input type="text" id="csvContactSearch" placeholder="搜索…" style="flex:1;min-width:80px;font-size:12px" oninput="renderCsvContactList()">
+          <input type="text" id="csvResultSearch" placeholder="搜索…" style="flex:1;min-width:80px;font-size:12px" oninput="renderCsvResults()">
         </div>
-        <div id="csvContactList" style="max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+        <div id="csvResultList" style="max-height:460px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
         <div style="margin-top:10px">
-          <button class="btn btn-primary" id="csvSyncBtn" onclick="startCsvSync()" style="width:100%">④ 开始 AI 分析 · 同步云端</button>
+          <button class="btn btn-primary" id="csvSyncBtn" onclick="startCsvSync()" style="width:100%">⑤ 确认 · 同步到云端</button>
         </div>
       </div>
     </div>
@@ -1485,8 +1506,17 @@ function renderClientSelect(){
 function renderClients(){
   var search=(document.getElementById('searchClient')&&document.getElementById('searchClient').value||'').toLowerCase();
   var fl=document.getElementById('filterLevel')&&document.getElementById('filterLevel').value||'';
+  var exDone=!!(document.getElementById('excludeDone')&&document.getElementById('excludeDone').checked);
+  var exLost=!!(document.getElementById('excludeLost')&&document.getElementById('excludeLost').checked);
   var list=document.getElementById('clientList');if(!list)return;
-  var names=Object.keys(clients).filter(function(n){return(!search||n.toLowerCase().includes(search))&&(!fl||clients[n].level===fl);});
+  var names=Object.keys(clients).filter(function(n){
+    var lv=clients[n].level;
+    if(search&&!n.toLowerCase().includes(search))return false;
+    if(fl&&lv!==fl)return false;
+    if(exDone&&lv==='done')return false;
+    if(exLost&&lv==='lost')return false;
+    return true;
+  });
   if(!names.length){list.innerHTML='<div class="empty">暂无客户记录</div>';return;}
   var sortMode=document.getElementById('sortOrder')&&document.getElementById('sortOrder').value||'urgency';
   names.sort(function(a,b){
@@ -1690,6 +1720,7 @@ if(document.readyState === 'loading'){
 // ===== CSV 导入同步 =====
 var csvParsedData = {}; // { name: [messages] }
 var csvOverride = {}; // manual level/date overrides before sync
+var csvAnalyzeResults = {}; // AI analysis results keyed by name
 var csvContactSelected = {}; // { name: true/false }
 var csvRawFile = null;
 
@@ -1847,20 +1878,15 @@ function saveExcludedSet(set){
 
 function renderCsvContactList(){
   var search=(document.getElementById('csvContactSearch').value||'').toLowerCase();
-  var flEl=document.getElementById('csvFilterLevel');
-  var soEl=document.getElementById('csvSortOrder');
-  var fl=flEl?flEl.value:'';
-  var so=soEl?soEl.value:'existing';
   var names=Object.keys(csvParsedData).filter(function(n){
-    if(search&&!n.toLowerCase().includes(search))return false;
-    if(fl==='new')return !clients[n];
-    if(fl&&fl!=='new'){if(!clients[n])return false;if(clients[n].level!==fl)return false;}
-    return true;
+    return !search||n.toLowerCase().includes(search);
   });
-  if(so==='existing'){names.sort(function(a,b){var ea=clients[a]?1:0,eb=clients[b]?1:0;if(ea!==eb)return eb-ea;return a.localeCompare(b);});}
-  else if(so==='urgency'){names.sort(function(a,b){var sa=clients[a]?calcUrgencyScore(a,clients[a]):0,sb=clients[b]?calcUrgencyScore(b,clients[b]):0;return sb-sa;});}
-  else if(so==='msgCount'){names.sort(function(a,b){return(csvParsedData[b]||[]).length-(csvParsedData[a]||[]).length;});}
-  else{names.sort(function(a,b){return a.localeCompare(b);});}
+  // Sort: existing clients first, then by name
+  names.sort(function(a,b){
+    var ea=clients[a]?1:0,eb=clients[b]?1:0;
+    if(ea!==eb)return eb-ea;
+    return a.localeCompare(b);
+  });
   var container=document.getElementById('csvContactList');
   container.innerHTML='';
   names.forEach(function(name){
@@ -1869,59 +1895,161 @@ function renderCsvContactList(){
     var existing=clients[name];
     var lc=existing?levelConfig(existing.level||'C'):null;
     var lastMsg=msgs[msgs.length-1];
-    var lastCustomer=msgs.slice().reverse().find(function(m){return m.role==='\u5ba2\u6237';});
-    var preview=lastCustomer?lastCustomer.content.slice(0,30)+'…':'\uff08\u4ec5\u6211\u65b9\u6d88\u606f\uff09';
+    var lastCustomer=msgs.slice().reverse().find(function(m){return m.role==='客户';});
+    var preview=lastCustomer?lastCustomer.content.slice(0,32)+'…':'(仅我方消息)';
     var timeStr=lastMsg?(lastMsg.time.getMonth()+1)+'/'+(lastMsg.time.getDate()):'';
-    var curLevel=existing?(existing.level||'C'):'C';
-    var curNext=existing?(existing.nextFollow||''):'';
-
     var wrap=document.createElement('div');
-    wrap.style.cssText='padding:8px 10px;background:var(--bg3);border-radius:8px;border:1px solid '+(checked?'rgba(79,141,255,.3)':'var(--border)');
-
-    // Header row with checkbox
-    var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;gap:8px';
+    wrap.style.cssText='padding:7px 10px;background:var(--bg3);border-radius:8px;border:1px solid '+(checked?'rgba(79,141,255,.3)':'var(--border)')+'display:flex;align-items:center;gap:8px';
     var cb=document.createElement('input');cb.type='checkbox';cb.checked=checked;
     cb.style.cssText='width:14px;height:14px;accent-color:var(--accent);flex-shrink:0';
     (function(n,w){cb.onchange=function(){csvContactSelected[n]=this.checked;w.style.borderColor=this.checked?'rgba(79,141,255,.3)':'var(--border)';};}) (name,wrap);
-    hdr.appendChild(cb);
+    wrap.appendChild(cb);
     var info=document.createElement('div');info.style.cssText='flex:1;min-width:0';
     var nl=document.createElement('div');nl.style.cssText='display:flex;align-items:center;gap:5px;flex-wrap:wrap';
     var nsp=document.createElement('span');nsp.style.cssText='font-weight:500;font-size:13px';nsp.textContent=name;nl.appendChild(nsp);
     if(lc){var lt=document.createElement('span');lt.className='tag '+lc.cls;lt.style.fontSize='10px';lt.textContent=lc.label;nl.appendChild(lt);}
-    else{var ns=document.createElement('span');ns.style.cssText='font-size:10px;color:var(--text3)';ns.textContent='\u65b0\u5ba2\u6237';nl.appendChild(ns);}
-    var ms=document.createElement('span');ms.style.cssText='font-size:10px;color:var(--text3)';ms.textContent=msgs.length+'\u6761 \u00b7 '+timeStr;nl.appendChild(ms);
+    else{var ns2=document.createElement('span');ns2.style.cssText='font-size:10px;color:var(--text3)';ns2.textContent='新客户';nl.appendChild(ns2);}
+    var ms=document.createElement('span');ms.style.cssText='font-size:10px;color:var(--text3)';ms.textContent=msgs.length+'条 · '+timeStr;nl.appendChild(ms);
     info.appendChild(nl);
     var pl=document.createElement('div');pl.style.cssText='font-size:11px;color:var(--text3);margin-top:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis';pl.textContent=preview;
     info.appendChild(pl);
-    hdr.appendChild(info);
-    wrap.appendChild(hdr);
-
-    // Edit row: level selector + date picker
-    var editRow=document.createElement('div');editRow.style.cssText='display:flex;gap:8px;margin-top:7px;align-items:center;flex-wrap:wrap';
-    var ll=document.createElement('span');ll.style.cssText='font-size:11px;color:var(--text3)';ll.textContent='\u610f\u5411\u5ea6\uff1a';editRow.appendChild(ll);
-    var sel=document.createElement('select');sel.style.cssText='font-size:11px;padding:2px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px';
-    [['Aplus','A+ \u51c6\u6210\u4ea4'],['A','A \u5f3a\u5174\u8da3'],['B','B \u6709\u5174\u8da3'],['C','C \u4e86\u89e3\u4e2d'],['done','\u2713 \u6210\u4ea4'],['lost','\u2717 \u5df2\u8d2d\u7ade\u54c1']].forEach(function(o){
-      var opt=document.createElement('option');opt.value=o[0];opt.textContent=o[1];if(o[0]===curLevel)opt.selected=true;sel.appendChild(opt);
-    });
-    (function(n){sel.onchange=function(){csvOverride[n]=csvOverride[n]||{};csvOverride[n].level=this.value;};})(name);
-    editRow.appendChild(sel);
-    var dl=document.createElement('span');dl.style.cssText='font-size:11px;color:var(--text3)';dl.textContent='\u8ddf\u8fdb\u65f6\u95f4\uff1a';editRow.appendChild(dl);
-    var dt=document.createElement('input');dt.type='date';dt.value=curNext;
-    dt.style.cssText='font-size:11px;padding:2px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px';
-    (function(n){dt.onchange=function(){csvOverride[n]=csvOverride[n]||{};csvOverride[n].nextFollow=this.value;};})(name);
-    editRow.appendChild(dt);
-    wrap.appendChild(editRow);
+    wrap.appendChild(info);
     container.appendChild(wrap);
   });
 }
 
+async function startCsvAnalyze(){
+  var toAnalyze=Object.keys(csvContactSelected).filter(function(n){return csvContactSelected[n];});
+  if(!toAnalyze.length){showToast('请至少勾选一个客户');return;}
+  if(!cfg.dsKey){showToast('请先在配置页填写 API Key');return;}
+  var btn=document.getElementById('csvAnalyzeBtn');
+  btn.disabled=true;btn.textContent='分析中…';
+  // Save excluded
+  var excluded=loadExcludedSet();
+  Object.keys(csvContactSelected).forEach(function(n){if(!csvContactSelected[n])excluded.add(n);else excluded.delete(n);});
+  saveExcludedSet(excluded);
+  // Reset results
+  csvAnalyzeResults={};
+  csvOverride={};
+  var today=new Date().toISOString().slice(0,10);
+  for(var i=0;i<toAnalyze.length;i++){
+    var name=toAnalyze[i];
+    var messages=csvParsedData[name]||[];
+    var existing=clients[name]||null;
+    btn.textContent='AI分析中 ('+(i+1)+'/'+toAnalyze.length+')…';
+    var aiResult=null;
+    try{
+      var dialog=messages.map(function(m){return m.role+'：'+m.content;}).join('\n');
+      if(dialog.length>2000)dialog=dialog.slice(0,2000)+'…';
+      var existingInfo='';
+      if(existing){
+        existingInfo='\n已有档案：'+existing.level+'级，痛点：'+(existing.pain||'')+'，阶段：'+(existing.stage||'')+'\n';
+        var hist=(existing.history||[]).slice(-20);
+        if(hist.length){var histTxt=hist.map(function(h){return(h.role==='user'?'客户':'我')+'：'+(h.content||'').slice(0,120);}).join('\n');if(histTxt.length>3000)histTxt=histTxt.slice(-3000);existingInfo+='\n历史对话（最近'+hist.length+'条）\n'+histTxt+'\n';}
+      }
+      var userMsg='客户【'+name+'】'+existingInfo+'\n今日新对话：\n'+dialog+'\n\n输出JSON：\n{"level":"Aplus/A/B/C/done之一","sub_type":"准成交/强兴趣/有兴趣/了解中/已成交","pain":"核心痛点","stage":"初识/咋询/异议/准成交","follow_days":2,"summary":"一句话画像","tags":["标煸1","标煸2","标煸3"],"wx_group":"A类重点跟进或B类培育中或C类待激活","open_date":"开业时间没有则空","fuzzy_time":"模糊时间原话没有则空"}';
+      var res=await fetch(AI_API_URL,{method:'POST',headers:{'Authorization':'Bearer '+cfg.dsKey,'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL,messages:[{role:'system',content:buildSyncPrompt()},{role:'user',content:userMsg}],temperature:0.4,max_tokens:1000})});
+      if(!res.ok){var et=await res.text();throw new Error('HTTP '+res.status+': '+et.slice(0,60));}
+      var data=await res.json();
+      if(data.error)throw new Error(data.error.message||'API error');
+      var txt=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+      txt=txt.replace(/```json|```/g,'').trim();
+      var mm=txt.match(/\{[\s\S]*\}/);
+      if(mm)aiResult=JSON.parse(mm[0]);
+    }catch(ex){
+      aiResult={level:(existing&&existing.level)||'C',pain:'',stage:'初识',follow_days:2,summary:'(分析失败: '+ex.message.slice(0,30)+')',tags:[],wx_group:'',open_date:'',fuzzy_time:''};
+    }
+    csvAnalyzeResults[name]={
+      ai:aiResult,
+      messages:messages,
+      existing:existing,
+      level:aiResult?aiResult.level:(existing&&existing.level)||'C',
+      nextFollow:''
+    };
+    if(i<toAnalyze.length-1)await new Promise(function(r){setTimeout(r,300);});
+  }
+  btn.disabled=false;btn.textContent='✓ 重新分析';
+  document.getElementById('csvResultCard').style.display='block';
+  document.getElementById('csvResultCard').scrollIntoView({behavior:'smooth'});
+  document.getElementById('csvResultSummary').textContent='共 '+toAnalyze.length+' 个客户，确认后点同步';
+  renderCsvResults();
+}
+function renderCsvResults(){
+  var fl=document.getElementById('csvResultFilter')?document.getElementById('csvResultFilter').value:'';
+  var so=document.getElementById('csvResultSort')?document.getElementById('csvResultSort').value:'urgency';
+  var search=(document.getElementById('csvResultSearch')?document.getElementById('csvResultSearch').value:'').toLowerCase();
+  var lvOrder={Aplus:0,A:1,B:2,C:3,done:4,lost:5};
+  var names=Object.keys(csvAnalyzeResults).filter(function(n){
+    if(search&&!n.toLowerCase().includes(search))return false;
+    var lv=(csvOverride[n]&&csvOverride[n].level)||csvAnalyzeResults[n].level||'C';
+    if(fl&&lv!==fl)return false;
+    return true;
+  });
+  if(so==='urgency'){names.sort(function(a,b){var la=(csvOverride[a]&&csvOverride[a].level)||csvAnalyzeResults[a].level||'C',lb=(csvOverride[b]&&csvOverride[b].level)||csvAnalyzeResults[b].level||'C';return (lvOrder[la]||9)-(lvOrder[lb]||9);});}
+  else if(so==='msgCount'){names.sort(function(a,b){return(csvAnalyzeResults[b].messages||[]).length-(csvAnalyzeResults[a].messages||[]).length;});}
+  else{names.sort(function(a,b){return a.localeCompare(b);});}
+  var container=document.getElementById('csvResultList');
+  container.innerHTML='';
+  var lvLabels={Aplus:'A+ 准成交',A:'A 强兴趣',B:'B 有兴趣',C:'C 了解中',done:'✓ 成交',lost:'✗ 已购竞品'};
+  names.forEach(function(name){
+    var r=csvAnalyzeResults[name];
+    var ai=r.ai||{};
+    var curLv=(csvOverride[name]&&csvOverride[name].level)||r.level||'C';
+    var curNext=(csvOverride[name]&&csvOverride[name].nextFollow)||'';
+    var lc=levelConfig(curLv);
+    var card=document.createElement('div');
+    card.style.cssText='padding:10px 12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)';
+    // Name + level tag + msg count
+    var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px';
+    var ns=document.createElement('span');ns.style.cssText='font-weight:500;font-size:13px';ns.textContent=name;hdr.appendChild(ns);
+    var lt=document.createElement('span');lt.className='tag '+lc.cls;lt.textContent=lc.label;hdr.appendChild(lt);
+    if(r.existing){var ex=document.createElement('span');ex.style.cssText='font-size:10px;color:var(--text3)';ex.textContent='原: '+r.existing.level+'级';hdr.appendChild(ex);}
+    else{var nw=document.createElement('span');nw.style.cssText='font-size:10px;color:var(--text3)';nw.textContent='新客户';hdr.appendChild(nw);}
+    var mc=document.createElement('span');mc.style.cssText='font-size:10px;color:var(--text3);margin-left:auto';mc.textContent=(r.messages||[]).length+'条消息';hdr.appendChild(mc);
+    card.appendChild(hdr);
+    // AI summary + pain
+    if(ai.summary||ai.pain){
+      var detail=document.createElement('div');detail.style.cssText='font-size:11px;color:var(--text2);margin-bottom:6px;line-height:1.6';
+      if(ai.pain){var pl=document.createElement('span');pl.style.color='var(--text3)';pl.textContent='痛点: ';detail.appendChild(pl);detail.appendChild(document.createTextNode(ai.pain));detail.appendChild(document.createElement('br'));}
+      if(ai.summary){var sl=document.createElement('span');sl.style.color='var(--text3)';sl.textContent='画像: ';detail.appendChild(sl);detail.appendChild(document.createTextNode(ai.summary));}
+      card.appendChild(detail);
+    }
+    // Tags
+    if(ai.tags&&ai.tags.length){
+      var tr=document.createElement('div');tr.style.cssText='display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px';
+      ai.tags.forEach(function(t){var ts=document.createElement('span');ts.className='tag tag-info';ts.style.fontSize='10px';ts.textContent=t;tr.appendChild(ts);});
+      card.appendChild(tr);
+    }
+    // Edit row
+    var er=document.createElement('div');er.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:6px;margin-top:2px';
+    var ll=document.createElement('span');ll.style.cssText='font-size:11px;color:var(--text3)';ll.textContent='意向度：';er.appendChild(ll);
+    var sel=document.createElement('select');sel.style.cssText='font-size:11px;padding:2px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px';
+    [['Aplus','A+ 准成交'],['A','A 强兴趣'],['B','B 有兴趣'],['C','C 了解中'],['done','✓ 成交'],['lost','✗ 已购竞品']].forEach(function(o){
+      var opt=document.createElement('option');opt.value=o[0];opt.textContent=o[1];if(o[0]===curLv)opt.selected=true;sel.appendChild(opt);
+    });
+    (function(n,h){sel.onchange=function(){
+      csvOverride[n]=csvOverride[n]||{};csvOverride[n].level=this.value;
+      var lc2=levelConfig(this.value);
+      h.querySelector('.tag').className='tag '+lc2.cls;
+      h.querySelector('.tag').textContent=lc2.label;
+    };})(name,hdr);
+    er.appendChild(sel);
+    var dl=document.createElement('span');dl.style.cssText='font-size:11px;color:var(--text3)';dl.textContent='跟进时间：';er.appendChild(dl);
+    var dt=document.createElement('input');dt.type='date';dt.value=curNext;
+    dt.style.cssText='font-size:11px;padding:2px 6px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px';
+    (function(n){dt.onchange=function(){csvOverride[n]=csvOverride[n]||{};csvOverride[n].nextFollow=this.value;};})(name);
+    er.appendChild(dt);
+    card.appendChild(er);
+    container.appendChild(card);
+  });
+}
 function csvSelectAll(val){
   Object.keys(csvContactSelected).forEach(function(n){ csvContactSelected[n]=val; });
   renderCsvContactList();
 }
 
 async function startCsvSync(){
-  var toSync=Object.keys(csvContactSelected).filter(function(n){return csvContactSelected[n];});
+  var toSync=Object.keys(csvAnalyzeResults);
   if(!toSync.length){showToast('请至少选择一个客户');return;}
   if(!cfg.dsKey){showToast('请先在配置页填写 API Key');return;}
 
@@ -1953,8 +2081,9 @@ async function startCsvSync(){
 
   for(var i=0;i<toSync.length;i++){
     var name=toSync[i];
-    var messages=csvParsedData[name]||[];
-    var existing=clients[name]||null;
+    var resultEntry=csvAnalyzeResults[name]||{};
+    var messages=resultEntry.messages||csvParsedData[name]||[];
+    var existing=resultEntry.existing||clients[name]||null;
 
     document.getElementById('csvProgressText').textContent='正在处理：'+name;
     document.getElementById('csvProgressNum').textContent=(i+1)+' / '+toSync.length;
@@ -1962,9 +2091,11 @@ async function startCsvSync(){
 
     addLog('['+( i+1)+'/'+toSync.length+'] '+name+'（'+messages.length+'条）'+(existing?' · 现等级：'+existing.level:'· 新客户'));
 
-    // AI 分析
-    var aiResult=null;
-    try{
+    // Use pre-analyzed AI result
+    var aiResult=(csvAnalyzeResults[name]&&csvAnalyzeResults[name].ai)||null;
+    if(aiResult){addLog('  ✓ AI: '+aiResult.level+'级 · '+(aiResult.pain||'').slice(0,20),'var(--green)');}
+    else{addLog('  ⚠ 无AI分析结果，保留现有数据','var(--amber)');}
+    if(false)try{
       var dialog=messages.map(function(m){return m.role+'：'+m.content;}).join('\n');
       if(dialog.length>2000)dialog=dialog.slice(0,2000)+'…';
       var existingInfo='';
