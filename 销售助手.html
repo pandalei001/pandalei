@@ -1978,13 +1978,23 @@ async function startCsvAnalyze(){
     var lastT=messages.length?messages[messages.length-1].time:new Date();
     var lastContact=lastT instanceof Date?lastT.toISOString().slice(0,10):String(lastT).slice(0,10);
     var fuzzyDate=ai.fuzzy_time?parseFuzzyTime(ai.fuzzy_time,todayD):'';
-    var aiNextFollow=calcNextFollow(lvl,fd,new Date(lastContact),ai.open_date||'',todayD,fuzzyDate);
+    // 只有客户有回复时才重新计算跟进时间，否则保留云端现有时间
+    var customerReplied=messages.some(function(m){return m.role==='客户';});
+    var aiNextFollow='';
+    if(customerReplied){
+      aiNextFollow=calcNextFollow(lvl,fd,new Date(lastContact),ai.open_date||'',todayD,fuzzyDate);
+    } else if(existing&&existing.nextFollow){
+      aiNextFollow=existing.nextFollow; // 客户未回复，保留云端跟进时间
+    } else {
+      aiNextFollow=calcNextFollow(lvl,fd,new Date(lastContact),ai.open_date||'',todayD,fuzzyDate);
+    }
     csvAnalyzeResults[name]={
       ai:aiResult,
       messages:messages,
       existing:existing,
       level:lvl,
       aiNextFollow:aiNextFollow,
+      customerReplied:customerReplied,
       lastContact:lastContact
     };
     // Render incrementally
@@ -2065,8 +2075,16 @@ function renderCsvResults(){
     var dlabel=document.createElement('div');dlabel.style.cssText='display:flex;align-items:center;gap:4px';
     var dl=document.createElement('span');dl.style.cssText='font-size:11px;color:var(--text3)';dl.textContent='跟进时间：';dlabel.appendChild(dl);
     if(aiNext){
-      var aiHint=document.createElement('span');aiHint.style.cssText='font-size:10px;color:var(--accent);background:rgba(79,141,255,.12);padding:1px 5px;border-radius:4px';
-      aiHint.textContent='AI建议 '+aiNext;dlabel.appendChild(aiHint);
+      var aiHint=document.createElement('span');
+      var replied=r.customerReplied;
+      if(replied){
+        aiHint.style.cssText='font-size:10px;color:var(--accent);background:rgba(79,141,255,.12);padding:1px 5px;border-radius:4px';
+        aiHint.textContent='AI建议 '+aiNext;
+      } else {
+        aiHint.style.cssText='font-size:10px;color:var(--text3);background:rgba(120,120,120,.12);padding:1px 5px;border-radius:4px';
+        aiHint.textContent=r.existing?'保留云端 '+aiNext:'新客户 '+aiNext;
+      }
+      dlabel.appendChild(aiHint);
     }
     dg.appendChild(dlabel);
     var dt=document.createElement('input');dt.type='date';dt.value=displayNext;
@@ -2174,10 +2192,17 @@ async function startCsvSync(){
       var customerReplied=messages.some(function(m){return m.role==='客户';});
       var followCount=customerReplied?0:((existing&&existing.followCount)||0)+1;
 
-      // 计算跟进时间
+      // 计算跟进时间：客户未回复且是老客户 → 保留云端时间
       var todayD=new Date(today);
-      var nextFollow=calcNextFollow(level,followDays,new Date(lastContact),openDate,todayD,fuzzyTime?parseFuzzyTime(fuzzyTime,todayD):'');
-      if(ov.nextFollow)nextFollow=ov.nextFollow;
+      var nextFollow;
+      if(ov.nextFollow){
+        nextFollow=ov.nextFollow; // 用户手动改的，最优先
+      } else if(!customerReplied&&existing&&existing.nextFollow){
+        nextFollow=existing.nextFollow; // 客户没回复，保留云端跟进时间
+        addLog('  → 客户未回复，保留跟进时间: '+nextFollow,'var(--text3)');
+      } else {
+        nextFollow=calcNextFollow(level,followDays,new Date(lastContact),openDate,todayD,fuzzyTime?parseFuzzyTime(fuzzyTime,todayD):'');
+      }
 
       var row={
         user_id:currentUserId,name:name,
