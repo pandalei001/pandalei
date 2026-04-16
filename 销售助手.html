@@ -797,6 +797,8 @@ async function renderDashboard(){
   if(aplusToday.length)alerts.push('<div style="background:rgba(220,20,20,.1);border:1px solid rgba(220,20,20,.4);border-radius:8px;padding:10px 14px;font-size:12px;color:#ff2020;margin-bottom:6px">⚡ 今天有 '+aplusToday.length+' 个A+准成交客户！48小时不跟进基本凉了，立刻处理！</div>');
   var u7=toFollow.filter(function(e){var s=extractDateFromText(e[1].openDate||'');return s&&Math.floor((new Date(s)-today)/86400000)<=7;});
   if(u7.length)alerts.push('<div style="background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--amber)">📅 有 '+u7.length+' 个客户7天内开业，今天必须跟进！</div>');
+  var promoAlert=checkPromoAlert(today);
+  if(promoAlert)alerts.push('<div style="background:rgba(46,204,138,.08);border:1px solid rgba(46,204,138,.35);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--green);margin-bottom:6px">'+promoAlert+'</div>');
   document.getElementById('dashAlerts').innerHTML=alerts.join('');
 }
 function getClientName(){return document.getElementById('clientName').value.trim()||document.getElementById('clientSelect').value||'';}
@@ -839,7 +841,7 @@ function buildPrompt(analysisOnly){
   var styleAddon='';
   if(cfg.styleProfile&&cfg.styleProfile.advice)styleAddon='\n\n## 我的话术风格\n'+cfg.styleProfile.advice+'\n语气：'+(cfg.styleProfile.tone||'')+'\n避免：'+(cfg.styleProfile.avoid||[]).join('、');
   var base='你是云e宝服装管理系统顶级销售顾问，20年经验，擅长读懂客户心理。\n\n## 产品知识库\n'+kb+styleAddon;
-  var note='\n\n重要规则：\n1)标签根据对话内容提取，不能根据名字推断\n2)我说的是销售话术，客户说的才是客户需求\n3)痛点只提取客户自己说出的内容\n4)开业时间必须在tags里记录如"预计3月25日开业"\n\n【等级判断严格标准】\n\nAplus=准成交（同时满足：有明确购买动作信号 + 没有否定信号）\n✅ 触发Aplus的信号：主动问快递时效/付款方式/能否走平台/能否升级/问合同发票/问开通流程/说"好的我考虑一下今天/明天给你回复"\n❌ 以下情况【不能】判Aplus，应降为A：\n  - 说"我考虑一下"但没有明确时间承诺\n  - 说"晚点联系"但没有其他购买信号\n  - 只是礼貌性结束对话（"好的知道了""嗯嗯""谢谢"）\n  - 问了价格但表示"有点贵""再想想""和别人比比"\n  - 上一条是我发的消息，客户还没回复\n\nA=强兴趣（有明确兴趣但未到临门一脚）\n✅ 触发A的信号：主动问优惠/活动/问试用演示/说考虑一下（无时间节点）/问具体价格/对比竞品/问能否定制\n❌ 以下情况【不能】判A，应降为B或C：\n  - 只是随便问了一个功能，没有表达购买意向\n  - 态度冷淡，只回复"嗯""哦""知道了"\n\nB=有兴趣：咨询功能细节但没问价格，态度积极但还在了解阶段\nC=了解中：刚接触/闲聊/被动回复/态度不明\ndone=已成交：对话出现付款/转账/下单/打款/收到货了等【明确成交行为】（不能猜测）\n\n⚠️ 宁可低判不高判：拿不准A+还是A → 判A；拿不准A还是B → 判B\n\n模糊时间节点（写入fuzzy_time字段，没有则空字符串）：\n如果客户说了"晚点""明天""装修好了""年后""下个月""等我考虑""最近忙"等，原话写入fuzzy_time';
+  var note='\n\n重要规则：\n1)标签根据对话内容提取，不能根据名字推断\n2)我说的是销售话术，客户说的才是客户需求\n3)痛点只提取客户自己说出的内容\n4)开业时间必须在tags里记录如"预计3月25日开业"\n\n【等级判断严格标准】\n\nAplus=准成交（同时满足：有明确购买动作信号 + 没有否定信号）\n✅ 触发Aplus的信号：主动问快递时效/付款方式/能否走平台/能否升级/问合同发票/问开通流程/说"好的我考虑一下今天/明天给你回复"\n❌ 以下情况【不能】判Aplus，应降为A：\n  - 说"我考虑一下"但没有明确时间承诺\n  - 说"晚点联系"但没有其他购买信号\n  - 只是礼貌性结束对话（"好的知道了""嗯嗯""谢谢"）\n  - 问了价格但表示"有点贵""再想想""和别人比比"\n  - 上一条是我发的消息，客户还没回复\n\nA=强兴趣（有明确兴趣但未到临门一脚）\n✅ 触发A的信号：主动问优惠/活动/问试用演示/说考虑一下（无时间节点）/问具体价格/对比竞品/问能否定制\n❌ 以下情况【不能】判A，应降为B或C：\n  - 只是随便问了一个功能，没有表达购买意向\n  - 态度冷淡，只回复"嗯""哦""知道了"\n\nB=有兴趣：咨询功能细节但没问价格，态度积极但还在了解阶段\nC=了解中：刚接触/闲聊/被动回复/态度不明\ndone=已成交：对话出现付款/转账/下单/打款/收到货了等【明确成交行为】（不能猜测）\n\n⚠️ 宁可低判不高判：拿不准A+还是A → 判A；拿不准A还是B → 判B\n\n模糊时间节点（写入fuzzy_time字段，没有则空字符串）：\n⚠️ 必须区分两种情况：\n①"联系时间"：客户说"明天联系/下周再说/下周回复你" → 照实写入\n②"使用/拿货/开业时间"：客户说"下周开业/半个月后拿货/下个月用" → 写入原话，跟进时间会自动提前\n如果客户说了"晚点""明天""后天""考虑一下""最近忙""装修""过段时间""下个月""年后""一周""7天""下周""半个月""两周"等，原话完整写入fuzzy_time';
   if(analysisOnly){
     return base+'\n\n## 任务\n深度分析客户对话，只输出JSON：\n{"intent":"核心意图","level":"Aplus或A或B或C或done","sub_type":"准成交/强兴趣/有兴趣/了解中/已成交","pain":"具体痛点","stage":"初识/咨询/异议/准成交","follow_days":1,"summary":"一句话画像","tags":["标签1","标签2","标签3","标签4","标签5"],"wx_group":"A类重点跟进或B类培育中或C类待激活","fuzzy_time":"模糊时间原话没有则空","replies":[]}\n等级：A热意向 B有兴趣 C了解中'+note;
   }else{
@@ -1011,7 +1013,7 @@ function updateClientData(name,data){
   var fuzzyTime=data.fuzzy_time||'';
   var fuzzyFollow=fuzzyTime?parseFuzzyTime(fuzzyTime,todayD):'';
   var lastD=clients[name].lastContact?new Date(clients[name].lastContact):todayD;
-  var nextFollow=calcNextFollow(data.level||'C',data.follow_days||2,lastD,openDate,todayD,fuzzyFollow);
+  var nextFollow=calcNextFollow(data.level||'C',data.follow_days||2,lastD,openDate,todayD,fuzzyFollow,clients[name].followCount||0);
   clients[name]=Object.assign({},clients[name],{
     level:data.level||'C',
     subType:data.sub_type||clients[name].subType||'',
@@ -1034,16 +1036,74 @@ function updateClientData(name,data){
 }
 function parseFuzzyTime(fuzzy,base){
   var d=new Date(base);
-  if(/\u665a\u70b9|\u4e00\u4f1a|\u7b49\u4e0b/.test(fuzzy))return addDays(d,1);
-  if(/\u660e\u5929/.test(fuzzy))return addDays(d,1);
-  if(/\u540e\u5929/.test(fuzzy))return addDays(d,2);
-  if(/\u8003\u8651|\u60f3\u60f3/.test(fuzzy))return addDays(d,3);
-  if(/\u6700\u8fd1\u5fd9|\u6bd4\u8f83\u5fd9/.test(fuzzy))return addDays(d,5);
-  if(/\u88c5\u4fee|\u8fc7\u6bb5\u65f6\u95f4/.test(fuzzy))return addDays(d,14);
-  if(/\u4e0b\u4e2a\u6708/.test(fuzzy)){var r=new Date(d);r.setMonth(r.getMonth()+1);r.setDate(1);return r.toISOString().slice(0,10);}
-  if(/\u5e74\u540e|\u8fc7\u5e74/.test(fuzzy)){var y=d.getFullYear()+(d.getMonth()>1?1:0);return new Date(y,1,10).toISOString().slice(0,10);}
-  if(/\u4e00\u5468|7\u5929/.test(fuzzy))return addDays(d,7);
-  if(/\u534a\u4e2a\u6708|\u4e24\u5468/.test(fuzzy))return addDays(d,14);
+  // 晚点/一会/等下 → 明天联系
+  if(/晚点|一会|等下/.test(fuzzy))return addDays(d,1);
+  // 明天/后天 → 按字面联系时间跟进
+  if(/明天/.test(fuzzy))return addDays(d,1);
+  if(/后天/.test(fuzzy))return addDays(d,2);
+  // 客户说"下周再联系/下周联系我" → 下周一跟进
+  if(/下周.{0,6}(联系|聊|回复|再说)|(联系|聊|回复|再说).{0,6}下周/.test(fuzzy)){
+    var r=new Date(d);var day=r.getDay()||7;r.setDate(r.getDate()+(8-day));return r.toISOString().slice(0,10);
+  }
+  // 考虑/想想 → +2天（非确定，稍推迟等待）
+  if(/考虑|想想/.test(fuzzy))return addDays(d,2);
+  // 最近忙/比较忙 → +1天（仍要紧跟）
+  if(/最近忙|比较忙/.test(fuzzy))return addDays(d,1);
+  // 装修/过段时间 → +3天
+  if(/装修|过段时间/.test(fuzzy))return addDays(d,3);
+  // 下个月（客户说下个月拿货/用/开业） → 当月25号提前跟进
+  if(/下个月/.test(fuzzy)){
+    var r2=new Date(d);r2.setDate(25);
+    // 如果今天已过25号，就是本月25；否则就是本月25
+    // 意图是"下月"的事，所以本月25号催
+    if(r2.toISOString().slice(0,10)<=d.toISOString().slice(0,10)){
+      r2.setMonth(r2.getMonth()+1);r2.setDate(25);
+    }
+    return r2.toISOString().slice(0,10);
+  }
+  // 年后/过年 → 次年2月1日提前跟进
+  if(/年后|过年/.test(fuzzy)){var y=d.getFullYear()+(d.getMonth()>1?1:0);return new Date(y,1,1).toISOString().slice(0,10);}
+  // "一周/7天/下周" 类 — 关键：判断是"联系时间"还是"使用/拿货/开业时间"
+  // 若带有联系含义 → 下周一跟进；若是拿货/开业/使用 → +2天主动催（不等7天）
+  if(/一周|7天|下周/.test(fuzzy)){
+    if(/(联系|聊|回复|再说)/.test(fuzzy)){
+      var r3=new Date(d);var day3=r3.getDay()||7;r3.setDate(r3.getDate()+(8-day3));return r3.toISOString().slice(0,10);
+    }else{
+      // 拿货/开业/装修/使用等 → 提前2天提醒
+      return addDays(d,2);
+    }
+  }
+  // "半个月/两周/15天" — 同理判断
+  if(/半个月|两周|15天/.test(fuzzy)){
+    if(/(联系|聊|回复|再说)/.test(fuzzy)){return addDays(d,14);}
+    else{return addDays(d,3);} // 拿货/开业时间是半个月后 → 3天后主动跟进
+  }
+  // "一个月/下下个月" — 拿货/开业在一个月后 → 月底25号跟进
+  if(/一个月|下下个月/.test(fuzzy)){
+    var r4=new Date(d);r4.setDate(25);
+    if(r4.toISOString().slice(0,10)<=d.toISOString().slice(0,10)){r4.setMonth(r4.getMonth()+1);r4.setDate(25);}
+    return r4.toISOString().slice(0,10);
+  }
+  return '';
+}
+
+// 检查是否是月底冲量/节日逼单时机，返回提示文案（空字符串=无）
+function checkPromoAlert(todayD){
+  var d=todayD||new Date();
+  var mon=d.getMonth()+1;var day=d.getDate();
+  // 月底逼单：每月25日起
+  if(day>=25){return '📦 月底冲量！现在成交赠送2箱打印纸，名额有限先到先得~';}
+  // 重要节假日前逼单
+  var key=[
+    {m:1,d1:15,d2:31,label:'年终'},{m:2,d1:1,d2:14,label:'春节'},{m:3,d1:1,d2:8,label:'妇女节'},
+    {m:5,d1:1,d2:5,label:'五一'},{m:6,d1:1,d2:18,label:'618'},{m:9,d1:25,d2:30,label:'国庆前'},
+    {m:10,d1:1,d2:7,label:'国庆'},{m:11,d1:1,d2:11,label:'双十一'},{m:12,d1:20,d2:31,label:'年底'}
+  ];
+  for(var i=0;i<key.length;i++){
+    var k=key[i];if(mon===k.m&&day>=k.d1&&day<=k.d2){
+      return '🎁 '+k.label+'活动逼单！现在成交赠送2箱打印纸，今天是最佳时机~';
+    }
+  }
   return '';
 }
 function addDays(d,n){var r=new Date(d);r.setDate(r.getDate()+n);return r.toISOString().slice(0,10);}
@@ -1056,7 +1116,7 @@ function extractDateFromText(text){
   if(m2){try{var d2=new Date(yr,today.getMonth(),parseInt(m2[1]));if(d2<today)d2.setMonth(d2.getMonth()+1);return d2.toISOString().slice(0,10);}catch(e){}}
   return'';
 }
-function calcNextFollow(level,followDays,lastContact,openDate,today,fuzzyFollow){
+function calcNextFollow(level,followDays,lastContact,openDate,today,fuzzyFollow,followCount){
   var todayStr=today.toISOString().slice(0,10);
   if(fuzzyFollow&&fuzzyFollow>todayStr)return fuzzyFollow;
   if(openDate){
@@ -1075,6 +1135,12 @@ function calcNextFollow(level,followDays,lastContact,openDate,today,fuzzyFollow)
   if(level==='Aplus'){
     var id=new Date(lastContact);id.setDate(id.getDate()+1);
     var ids=id.toISOString().slice(0,10);return ids<=todayStr?todayStr:ids;
+  }
+  // 新客户（followCount=0）报价/介绍后未回复 → 第二天必跟
+  var fc=followCount||0;
+  if(fc===0){
+    var nd=new Date(lastContact);nd.setDate(nd.getDate()+1);
+    var nds=nd.toISOString().slice(0,10);return nds<=todayStr?todayStr:nds;
   }
   var fd=followDays||2;
   if(level==='A')fd=Math.min(fd,2);
@@ -2198,10 +2264,17 @@ async function startCsvSync(){
       if(ov.nextFollow){
         nextFollow=ov.nextFollow; // 用户手动改的，最优先
       } else if(!customerReplied&&existing&&existing.nextFollow){
-        nextFollow=existing.nextFollow; // 客户没回复，保留云端跟进时间
-        addLog('  → 客户未回复，保留跟进时间: '+nextFollow,'var(--text3)');
+        // 客户没回复：新客户（followCount=0）第二天必跟；老客户保留原时间
+        if(!existing||!existing.followCount||existing.followCount===0){
+          var nnd=new Date(todayD);nnd.setDate(nnd.getDate()+1);
+          nextFollow=nnd.toISOString().slice(0,10);
+          addLog('  → 新客户未回复，明天跟进: '+nextFollow,'var(--amber)');
+        } else {
+          nextFollow=existing.nextFollow; // 老客户未回复，保留云端跟进时间
+          addLog('  → 客户未回复，保留跟进时间: '+nextFollow,'var(--text3)');
+        }
       } else {
-        nextFollow=calcNextFollow(level,followDays,new Date(lastContact),openDate,todayD,fuzzyTime?parseFuzzyTime(fuzzyTime,todayD):'');
+        nextFollow=calcNextFollow(level,followDays,new Date(lastContact),openDate,todayD,fuzzyTime?parseFuzzyTime(fuzzyTime,todayD):'',followCount);
       }
 
       var row={
@@ -2268,7 +2341,7 @@ async function startCsvSync(){
     if(sc.level==='done') continue;
     if(sc.nextFollow&&sc.nextFollow>today) continue;
     var newFc=(sc.followCount||0)+1;
-    var silenceGaps=[0,3,5,7];
+    var silenceGaps=[1,3,5,7];
     var silenceGap=silenceGaps[Math.min(newFc,3)];
     var nd2=new Date(today);nd2.setDate(nd2.getDate()+silenceGap);
     var nf2=nd2.toISOString().slice(0,10);
