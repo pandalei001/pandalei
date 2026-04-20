@@ -136,6 +136,13 @@ textarea:focus,input:focus,select:focus{border-color:var(--accent);}
 .search-wrap{position:relative;}
 .search-wrap input{padding-left:30px;}
 .search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none;}
+
+/* Make date input fully clickable */
+input[type=date]{position:relative;cursor:pointer;}
+input[type=date]::-webkit-calendar-picker-indicator{
+  position:absolute;left:0;top:0;width:100%;height:100%;
+  opacity:0;cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -618,12 +625,12 @@ async function loadFromCloud(){
         name:row.name,
         level:row.level||'C',
         tags:row.tags||[],
-        notes:row.notes||[],
-        chatLog:row.chat_log||'',
+        notes:row.history||[],    // notes从history字段读
+        chatLog:row.pain||'',     // chatLog从pain字段读
         nextFollow:row.next_follow||'',
         lastContact:row.last_contact||'',
         openDate:row.open_date||'',
-        addedAt:row.added_at||(row.created_at||'').slice(0,10)||today(),
+        addedAt:row.stage||(row.created_at||'').slice(0,10)||today(), // addedAt从stage读
         _dbId:row.id
       };
     });
@@ -641,11 +648,17 @@ async function loadFromCloud(){
 async function saveClient(name){
   if(!name||!clients[name])return;
   var c=clients[name];
+  // 兼容旧表结构：notes存在history字段，chatLog存在summary字段
+  var lastNote=c.notes&&c.notes.length?c.notes[c.notes.length-1].text:'';
   var row={
-    user_id:currentUserId,name:name,level:c.level,tags:c.tags,
-    notes:c.notes,chat_log:c.chatLog,next_follow:c.nextFollow,
-    last_contact:c.lastContact,open_date:c.openDate||'',
-    added_at:c.addedAt||today(),updated_at:new Date().toISOString()
+    user_id:currentUserId,name:name,level:c.level,tags:c.tags||[],
+    history:c.notes||[],          // notes时间线存在history字段
+    summary:lastNote.slice(0,200),// 最新备注存summary方便查看
+    pain:c.chatLog?c.chatLog.slice(0,500):'', // chatLog存pain字段(暂时)
+    next_follow:c.nextFollow||'',last_contact:c.lastContact||'',
+    open_date:c.openDate||'',wx_group:c.addedAt||today(), // addedAt存wx_group
+    stage:c.addedAt||today(),     // 备份addedAt到stage
+    updated_at:new Date().toISOString()
   };
   if(c._dbId)row.id=c._dbId;
   try{
@@ -1546,11 +1559,16 @@ async function startCsvSync(){
       var aiTags=ai.tags||[];
       var mergedTags=existTags.slice();
       aiTags.forEach(function(t){if(t&&mergedTags.indexOf(t)<0)mergedTags.push(t);});
+      var lastNoteText=notes.length?notes[notes.length-1].text:'';
       var row={
         user_id:currentUserId,name:name,level:lvl,tags:mergedTags,
-        notes:notes,chat_log:newChat,next_follow:nextFollow,
-        last_contact:lastContact3,open_date:ai.open_date||(existing&&existing.openDate)||'',
-        added_at:(existing&&existing.addedAt)||todayStr,updated_at:new Date().toISOString()
+        history:notes,summary:lastNoteText.slice(0,200),
+        pain:newChat?newChat.slice(0,500):'',
+        next_follow:nextFollow,last_contact:lastContact3,
+        open_date:ai.open_date||(existing&&existing.openDate)||'',
+        wx_group:(existing&&existing.addedAt)||todayStr,
+        stage:(existing&&existing.addedAt)||todayStr,
+        updated_at:new Date().toISOString()
       };
       var existId=(existing&&existing._dbId)||(clients[name]&&clients[name]._dbId);
       if(existId)row.id=existId;
@@ -1559,7 +1577,7 @@ async function startCsvSync(){
       clients[name]=Object.assign({},existing||{},{
         name:name,level:lvl,tags:mergedTags,notes:notes,chatLog:newChat,
         nextFollow:nextFollow,lastContact:lastContact3,
-        openDate:row.open_date,addedAt:row.added_at,
+        openDate:row.open_date,addedAt:row.stage,
         _dbId:(res&&res[0]&&res[0].id)||(existing&&existing._dbId)
       });
       addLog('['+name+'] ✓ '+lvl+'级 · 跟进：'+nextFollow,'var(--green)');
